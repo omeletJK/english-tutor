@@ -1,0 +1,111 @@
+{
+  "canvasWidth": 2048,
+  "canvasHeight": 2732,
+  "imagePathPrefix": "/character/",
+  "base": "IMG_0363",
+  "layerOrder": [
+    "base",
+    "longHair",
+    "bottom",
+    "top",
+    "hair",
+    "eyes",
+    "mouth"
+  ],
+  "categories": {
+    "hair": {
+      "label": "헤어",
+      "labelEn": "Hair",
+      "items": [
+        { "id": "IMG_0364", "label": "측면머리 · 라인", "color": "outline", "style": "side-tail" },
+        { "id": "IMG_0365", "label": "측면머리 · 핑크", "color": "pink",    "style": "side-tail" },
+        { "id": "IMG_0366", "label": "측면머리 · 블루", "color": "blue",    "style": "side-tail" },
+        { "id": "IMG_0367", "label": "측면머리 · 크림", "color": "cream",   "style": "side-tail" },
+        { "id": "IMG_0369", "label": "단발 · 라인",     "color": "outline", "style": "bob" },
+        { "id": "IMG_0370", "label": "단발 · 핑크",     "color": "pink",    "style": "bob" },
+        { "id": "IMG_0371", "label": "단발 · 블루",     "color": "blue",    "style": "bob" },
+        { "id": "IMG_0372", "label": "단발 · 크림",     "color": "cream",   "style": "bob" },
+        { "id": "IMG_0374", "label": "가르마 · 라인",   "color": "outline", "style": "parted" },
+        { "id": "IMG_0375", "label": "가르마 · 핑크",   "color": "pink",    "style": "parted" },
+        { "id": "IMG_0376", "label": "가르마 · 블루",   "color": "blue",    "style": "parted" },
+        { "id": "IMG_0378", "label": "가르마 · 크림",   "color": "cream",   "style": "parted" }
+      ]
+    },
+
+    "longHair": {
+      "label": "긴머리",
+      "labelEn": "Long hair",
+      "items": [
+        { "id": "IMG_0395", "label": "커튼 · 라인", "color": "outline", "style": "curtain" },
+        { "id": "IMG_0396", "label": "커튼 · 핑크", "color": "pink",    "style": "curtain" },
+        { "id": "IMG_0397", "label": "커튼 · 블루", "color": "blue",    "style": "curtain" },
+        { "id": "IMG_0398", "label": "커튼 · 크림", "color": "cream",   "style": "curtain" },
+        { "id": "IMG_0403", "label": "양갈래 · 라인", "color": "outline", "style": "twin" },
+        { "id": "IMG_0404", "label": "양갈래 · 크림", "color": "cream",   "style": "twin" },
+        { "id": "IMG_0405", "label": "양갈래 · 블루", "color": "blue",    "style": "twin" },
+        { "id": "IMG_0406", "label": "양갈래 · 핑크", "color": "pink",    "style": "twin" },
+        { "id": "IMG_0408", "label": "한쪽 · 라인",   "color": "outline", "style": "single" },
+        { "id": "IMG_0407", "label": "한쪽 · 크림",   "color": "cream",   "style": "single" },
+        { "id": "IMG_0410", "label": "한쪽 · 블루",   "color": "blue",    "style": "single" },
+        { "id": "IMG_0411", "label": "한쪽 · 핑크",   "color": "pink",    "style": "single" }
+      ]
+    },
+
+    "eyes": {
+      "label": "눈",
+      "labelEn": "Eyes",
+      "items": [
+        { "id": "IMG_0379", "label": "동그라미 · 라인", "color": "outline", "style": "dot" },
+        { "id": "IMG_0380", "label": "동그라미 · 크림", "color": "cream",   "style": "dot" },
+        { "id": "IMG_0381", "label": "동그라미 · 블루", "color": "blue",    "style": "dot" },
+        { "id": "IMG_0383", "label": "동그라미 · 핑크", "color": "pink",    "style": "dot" },
+        { "id": "IMG_0384", "label": "또렷한 · 라인",  "color": "outline", "style": "almond" },
+        { "id": "IMG_0385", "label": "또렷한 · 크림",  "color": "cream",   "style": "almond" },
+        { "id": "IMG_0386", "label": "또렷한 · 블루",  "color": "blue",    "style": "almond" },
+        { "id": "IMG_0387", "label": "또렷한 · 핑크",  "color": "pink",    "style": "almond" },
+        { "id": "IMG_0388", "label": "감은 눈", "style": "closed" },
+        { "id": "IMG_0390", "label": "작은 점", "style": "small-dot" }
+      ]
+    },
+
+    "mouth": {
+      "label": "입",
+      "labelEn": "Mouth",
+      "items": [
+        { "id": "IMG_0391", "label": "물결 미소" },
+        { "id": "IMG_0392", "label": "선 입"   },
+        { "id": "IMG_0393", "label": "작은 미소" },
+        { "id": "IMG_0394", "label": "코랄 입술", "color": "coral" }
+      ]
+    },
+
+    "top": {
+      "label": "상의",
+      "labelEn": "Top",
+      "items": [
+        { "id": "IMG_0412", "label": "화이트 블라우스", "color": "white" },
+        { "id": "IMG_0413", "label": "블루 가디건",     "color": "blue"  }
+      ]
+    },
+
+    "bottom": {
+      "label": "하의",
+      "labelEn": "Bottom",
+      "items": [
+        { "id": "IMG_0414", "label": "롱 코트",   "color": "brown", "style": "robe" },
+        { "id": "IMG_0415", "label": "긴 바지",   "color": "brown", "style": "pants" },
+        { "id": "IMG_0416", "label": "반바지",    "color": "beige", "style": "shorts" },
+        { "id": "IMG_0417", "label": "주름 치마", "color": "brown", "style": "pleated" }
+      ]
+    }
+  },
+
+  "defaultAvatar": {
+    "hair": null,
+    "longHair": null,
+    "eyes": null,
+    "mouth": null,
+    "top": null,
+    "bottom": null
+  }
+}
