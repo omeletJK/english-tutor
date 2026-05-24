@@ -1,4 +1,4 @@
-import { getQuickLoginEntries } from "@/lib/demo-data";
+import { listFamilyLoginEntries } from "@/lib/auth";
 import { PaperPlane } from "@/components/illustrations";
 
 type LoginPageProps = {
@@ -9,7 +9,7 @@ type LoginPageProps = {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
-  const entries = getQuickLoginEntries();
+  const entries = await listFamilyLoginEntries();
   const placeholderEmail = entries[0]?.email ?? "you@example.com";
 
   return (

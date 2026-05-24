@@ -1,8 +1,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { findDemoUser } from "@/lib/demo-data";
-import type { FamilyUser } from "@/lib/types";
+import { findDemoUser, getQuickLoginEntries, type QuickLoginEntry } from "@/lib/demo-data";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import type { FamilyRole, FamilyUser } from "@/lib/types";
 
 const COOKIE_NAME = "family_user_session";
 
@@ -44,8 +45,52 @@ function decodeSession(value: string | undefined): FamilyUser | null {
   }
 }
 
-export function resolveUserByEmail(email: string): FamilyUser | null {
+export async function resolveUserByEmail(email: string): Promise<FamilyUser | null> {
+  const normalized = email.trim().toLowerCase();
+  const supabase = getSupabaseAdmin();
+
+  if (supabase) {
+    const { data } = await supabase
+      .from("family_users")
+      .select("email, role, display_name, student_id")
+      .ilike("email", normalized)
+      .maybeSingle();
+
+    if (data) {
+      return {
+        email: data.email,
+        role: data.role as FamilyRole,
+        displayName: data.display_name,
+        studentId: data.student_id ?? undefined
+      };
+    }
+
+    return null;
+  }
+
   return findDemoUser(email);
+}
+
+export async function listFamilyLoginEntries(): Promise<QuickLoginEntry[]> {
+  const supabase = getSupabaseAdmin();
+
+  if (supabase) {
+    const { data } = await supabase
+      .from("family_users")
+      .select("email, role, display_name")
+      .order("role", { ascending: true })
+      .order("display_name", { ascending: true });
+
+    if (data && data.length > 0) {
+      return data.map((row) => ({
+        email: row.email,
+        label: row.display_name,
+        role: row.role as FamilyRole
+      }));
+    }
+  }
+
+  return getQuickLoginEntries();
 }
 
 export async function createUserSession(user: FamilyUser) {

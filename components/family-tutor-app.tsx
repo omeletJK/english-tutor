@@ -9,7 +9,10 @@ import type {
   EvaluationSnapshot,
   LearningEventResponse,
   ReferenceSentence,
+  SpeakingAttempt,
   SpeakingAttemptResponse,
+  SpeakingFeedbackSection,
+  EvaluationMetric,
   StudentDashboard,
   TaskMode
 } from "@/lib/types";
@@ -174,6 +177,18 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
         const pad = document.querySelector(".writing-desk .word-pad") as HTMLTextAreaElement | null;
         pad?.focus();
         pad?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
+  }
+
+  function onRetrySpeaking() {
+    setSpeakingFeedback(null);
+    setHeardReference(null);
+    setRecordingError("");
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => {
+        const orb = document.querySelector(".voice-studio") as HTMLElement | null;
+        orb?.scrollIntoView({ behavior: "smooth", block: "center" });
       });
     }
   }
@@ -381,6 +396,7 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
               recordingState={recordingState}
               heardReference={heardReference}
               onRetryWriting={onRetryWriting}
+              onRetrySpeaking={onRetrySpeaking}
               retryMode={retryMode}
               setQuestMode={setQuestMode}
               setWritingPracticeInput={setWritingPracticeInput}
@@ -417,6 +433,7 @@ function PlayView({
   recordingState,
   heardReference,
   onRetryWriting,
+  onRetrySpeaking,
   retryMode,
   setQuestMode,
   setWritingPracticeInput,
@@ -440,6 +457,7 @@ function PlayView({
   recordingState: "idle" | "recording" | "evaluating";
   heardReference: ReferenceSentence | null;
   onRetryWriting: () => void;
+  onRetrySpeaking: () => void;
   retryMode: boolean;
   setQuestMode: (mode: TaskMode) => void;
   setWritingPracticeInput: (sentence: string, value: string) => void;
@@ -524,53 +542,16 @@ function PlayView({
           {recordingError ? <div className="voice-error">{recordingError}</div> : null}
 
           {speakingFeedback ? (
-            <div className="speaking-feedback">
-              <div className="score-card">
-                <span>Score</span>
-                <strong>{speakingFeedback.attempt.score}</strong>
-              </div>
-              <div className="transcript-card">
-                <p className="tiny-label">Transcript</p>
-                <p>{speakingFeedback.attempt.transcript}</p>
-              </div>
-              <div className="metric-chips">
-                {speakingFeedback.attempt.metrics.map((metric) => (
-                  <span key={metric.label}>
-                    {metric.label} {metric.score}
-                  </span>
-                ))}
-              </div>
-              <div className="feedback-grid">
-                {speakingFeedback.attempt.feedbackSections.map((section) => (
-                  <div className="feedback-section" key={section.title}>
-                    <strong>{section.title}</strong>
-                    {section.notes.map((note) => (
-                      <p key={note}>{note}</p>
-                    ))}
-                  </div>
-                ))}
-              </div>
-              <div className="reference-drill">
-                <p className="tiny-label">Better ways to say your answer</p>
-                <p className="reference-help">
-                  학생이 말한 내용을 주제에 맞게 더 자연스럽게 고친 문장입니다. 들어본 뒤 전체 답변을 다시 녹음하세요.
-                </p>
-                {speakingFeedback.nextReferenceSentences.map((sentence) => (
-                  <button
-                    className={heardReference?.improved === sentence.improved ? "selected" : ""}
-                    key={sentence.improved}
-                    onClick={() => speakReference(sentence)}
-                    type="button"
-                  >
-                    <strong>{sentence.improved}</strong>
-                    <span>
-                      {sentence.original ? `From: "${sentence.original}" · ` : ""}
-                      {sentence.focus} · AI voice · click to hear
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <SpeakingReview
+              attempt={speakingFeedback.attempt}
+              metrics={speakingFeedback.attempt.metrics}
+              feedbackSections={speakingFeedback.attempt.feedbackSections}
+              referenceSentences={speakingFeedback.nextReferenceSentences}
+              attempts={activeStudent.speakingAttempts}
+              heardReference={heardReference}
+              onSpeakReference={speakReference}
+              onRetry={onRetrySpeaking}
+            />
           ) : null}
 
           </div>
@@ -706,6 +687,182 @@ function WorkspaceHeader({
         </button>
       </div>
     </section>
+  );
+}
+
+function SpeakingReview({
+  attempt,
+  metrics,
+  feedbackSections,
+  referenceSentences,
+  attempts,
+  heardReference,
+  onSpeakReference,
+  onRetry
+}: {
+  attempt: SpeakingAttempt;
+  metrics: EvaluationMetric[];
+  feedbackSections: SpeakingFeedbackSection[];
+  referenceSentences: ReferenceSentence[];
+  attempts: SpeakingAttempt[];
+  heardReference: ReferenceSentence | null;
+  onSpeakReference: (sentence: ReferenceSentence) => void;
+  onRetry: () => void;
+}) {
+  const score = attempt.score;
+  const orderedAttempts = useMemo(() => [...attempts].reverse(), [attempts]);
+  const currentIndex = orderedAttempts.findIndex((a) => a.id === attempt.id);
+  const previousAttempt = currentIndex > 0 ? orderedAttempts[currentIndex - 1] : null;
+  const previousScore = previousAttempt?.score;
+  const improved = previousScore !== undefined && score > previousScore;
+  const sameScore = previousScore !== undefined && score === previousScore;
+  const dropped = previousScore !== undefined && score < previousScore;
+  const scoreDelta = previousScore !== undefined ? score - previousScore : 0;
+  const bestScore = orderedAttempts.reduce((max, a) => Math.max(max, a.score), 0);
+  const isNewBest = orderedAttempts.length > 1 && score >= bestScore;
+  const isFirst = previousScore === undefined;
+
+  const headline = improved
+    ? "와! 더 잘 말했어요 🎉"
+    : sameScore
+      ? "다시 도전한 게 멋져요! 💪"
+      : dropped
+        ? "다시 도전한 용기가 빛나요 ✨"
+        : "오늘의 말하기 완료! 🌟";
+
+  const subline = isFirst
+    ? "잘 말했어요. 아래 팁을 따라 한 번 더 말해 봐요."
+    : improved
+      ? `지난 번 ${previousScore}점에서 ${score}점으로 올라갔어요.`
+      : sameScore
+        ? "점수는 같지만, 한 번 더 말해 본 것 자체가 성장이에요."
+        : "점수가 조금 내려갔지만 괜찮아요. 새 표현을 시도해 본 거니까요.";
+
+  return (
+    <div className="writing-review kid">
+      <div className={`kid-score-hero ${improved ? "celebrate" : ""}`}>
+        <div className="kid-score-hero__score">
+          <span>My Score</span>
+          <strong>{score}</strong>
+          {isNewBest ? <em className="best-badge">최고 점수!</em> : null}
+        </div>
+        <div className="kid-score-hero__message">
+          <h3>{headline}</h3>
+          <p>{subline}</p>
+          {previousScore !== undefined ? (
+            <div className="kid-score-delta">
+              <span className="prev">{previousScore}</span>
+              <span className="arrow" aria-hidden="true">→</span>
+              <span className="now">{score}</span>
+              <span className={`delta ${improved ? "up" : dropped ? "down" : "same"}`}>
+                {scoreDelta > 0 ? "+" : ""}
+                {scoreDelta}
+              </span>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {orderedAttempts.length > 1 ? (
+        <div className="kid-score-trail">
+          <p className="tiny-label">내 도전 기록</p>
+          <div>
+            {orderedAttempts.map((a, index) => {
+              const isLast = index === orderedAttempts.length - 1;
+              const prevA = index > 0 ? orderedAttempts[index - 1] : null;
+              const delta = prevA ? a.score - prevA.score : 0;
+              const sign = delta > 0 ? "up" : delta < 0 ? "down" : "same";
+              return (
+                <span key={a.id} className={`${isLast ? "current" : ""} ${sign}`}>
+                  <strong>{a.score}</strong>
+                  <small>
+                    Try {index + 1}
+                    {prevA ? ` · ${delta >= 0 ? "+" : ""}${delta}` : ""}
+                  </small>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="kid-card kid-transcript">
+        <p className="tiny-label">내가 말한 것</p>
+        <p>{attempt.transcript}</p>
+      </div>
+
+      {metrics.length ? (
+        <div className="kid-card kid-metrics">
+          <p className="tiny-label">세부 점수</p>
+          <div className="kid-metric-chips">
+            {metrics.map((metric) => (
+              <span key={metric.label}>
+                {metric.label} <strong>{metric.score}</strong>
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {feedbackSections.length ? (
+        <div className="kid-card kid-tips">
+          <p className="tiny-label">다음엔 이걸 해봐요</p>
+          <ul>
+            {feedbackSections.map((section) => (
+              <li key={section.title}>
+                <strong>{section.title}</strong>
+                {section.notes.slice(0, 1).map((note) => (
+                  <p key={note}>{note}</p>
+                ))}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {referenceSentences.length ? (
+        <div className="kid-card kid-power-ups">
+          <p className="tiny-label">문장 파워업 — 듣고 따라 말해봐요</p>
+          <p className="kid-card__help">
+            아래 문장을 들어본 뒤, 한 번 더 녹음해 봐요. 비슷한 표현을 내 말로 써보면 점수가 오를 거예요!
+          </p>
+          <div className="reference-drill kid-reference-drill">
+            {referenceSentences.map((sentence) => (
+              <button
+                className={heardReference?.improved === sentence.improved ? "selected" : ""}
+                key={sentence.improved}
+                onClick={() => onSpeakReference(sentence)}
+                type="button"
+              >
+                <strong>{sentence.improved}</strong>
+                <span>
+                  {sentence.original ? `내가 말한 것: "${sentence.original}" · ` : ""}
+                  {sentence.focus} · 들어보기
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="kid-retry">
+        <div className="kid-retry__copy">
+          <h3>다시 녹음해 볼래요?</h3>
+          <p>
+            {improved
+              ? "한 번 더 말하면 점수가 또 올라갈 수 있어요! 새 표현도 써봐요."
+              : "위 문장을 듣고, 새로운 표현으로 다시 도전해 봐요."}
+          </p>
+        </div>
+        <button
+          className="kid-retry__button"
+          onClick={onRetry}
+          type="button"
+        >
+          <span aria-hidden="true">🎤</span> 다시 녹음하기
+        </button>
+      </div>
+    </div>
   );
 }
 

@@ -215,6 +215,7 @@ export async function ensureDefaultStudent(currentUser?: FamilyUser): Promise<St
     .maybeSingle();
 
   if (existing) {
+    await linkFamilyUserToStudent(supabase, email, existing.id);
     return mapStudent(existing);
   }
 
@@ -234,7 +235,21 @@ export async function ensureDefaultStudent(currentUser?: FamilyUser): Promise<St
     return null;
   }
 
+  await linkFamilyUserToStudent(supabase, email, data.id);
+
   return mapStudent(data);
+}
+
+async function linkFamilyUserToStudent(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
+  email: string,
+  studentId: string
+) {
+  await supabase
+    .from("family_users")
+    .update({ student_id: studentId })
+    .eq("email", email)
+    .is("student_id", null);
 }
 
 function mapStudent(row: Record<string, any>): Student {

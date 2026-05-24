@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 export async function POST(request: Request) {
   const formData = await request.formData();
   const email = String(formData.get("quickEmail") || formData.get("email") || "");
-  const user = resolveUserByEmail(email);
+  const user = await resolveUserByEmail(email);
 
   if (!user) {
     redirect("/login?error=1");
