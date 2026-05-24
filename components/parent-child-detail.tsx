@@ -157,46 +157,48 @@ function OverviewSection({ student }: { student: StudentDashboard }) {
         />
       </div>
 
-      <div className="overview-row">
-        <div className="quest-board overview-panel">
-          <h3>최근 활동</h3>
-          {student.lessonHistory.length === 0 ? (
-            <p className="empty-note">아직 기록된 세션이 없습니다.</p>
-          ) : (
-            <ul className="activity-list">
-              {student.lessonHistory.slice(0, 6).map((item) => (
-                <li key={item.id}>
-                  <span className="activity-mode">{item.mode === "speaking" ? "Speaking" : "Writing"}</span>
-                  <strong>{item.title}</strong>
-                  <span className="activity-meta">
-                    {item.date} · {item.score}점
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      <div className="quest-board overview-panel">
+        <h3>스킬 상태</h3>
+        {student.skillStates.length === 0 ? (
+          <p className="empty-note">스킬 데이터가 누적되면 여기에 표시됩니다.</p>
+        ) : (
+          <ul className="skill-grid">
+            {student.skillStates.map((skill) => (
+              <li key={skill.id}>
+                <div className="skill-list-head">
+                  <strong>{skill.skill}</strong>
+                  <span>{skill.score}/100 · {skill.level}</span>
+                </div>
+                <div className="meter">
+                  <i style={{ width: `${skill.score}%` }} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
-        <div className="quest-board overview-panel">
-          <h3>스킬 상태</h3>
-          {student.skillStates.length === 0 ? (
-            <p className="empty-note">스킬 데이터가 누적되면 여기에 표시됩니다.</p>
-          ) : (
-            <ul className="skill-list">
-              {student.skillStates.map((skill) => (
-                <li key={skill.id}>
-                  <div className="skill-list-head">
-                    <strong>{skill.skill}</strong>
-                    <span>{skill.score}/100 · {skill.level}</span>
-                  </div>
-                  <div className="meter">
-                    <i style={{ width: `${skill.score}%` }} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      <div className="quest-board overview-panel">
+        <h3>활동 기록</h3>
+        {student.lessonHistory.length === 0 ? (
+          <p className="empty-note">아직 기록된 세션이 없습니다.</p>
+        ) : (
+          <ul className="activity-log">
+            {student.lessonHistory.slice(0, 12).map((item) => (
+              <li key={item.id}>
+                <span className={`activity-mode-tag ${item.mode}`}>
+                  {item.mode === "speaking" ? "Speaking" : "Writing"}
+                </span>
+                <div className="activity-body">
+                  <strong>{item.prompt ?? item.title}</strong>
+                </div>
+                <span className="activity-log-meta">
+                  {item.date} · {item.score}점
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {strongestSkill ? (
@@ -216,10 +218,10 @@ function OverviewSection({ student }: { student: StudentDashboard }) {
 
 /* ---------- Speaking ---------- */
 function SpeakingSection({ student }: { student: StudentDashboard }) {
-  const grouped = useMemo(() => groupAttemptsByTopic(student.speakingAttempts), [student.speakingAttempts]);
-  const [openTopic, setOpenTopic] = useState<string | null>(grouped[0]?.topic ?? null);
+  const sessions = useMemo(() => groupSpeakingByDate(student.speakingAttempts), [student.speakingAttempts]);
+  const [openId, setOpenId] = useState<string | null>(sessions[0]?.id ?? null);
 
-  if (grouped.length === 0) {
+  if (sessions.length === 0) {
     return (
       <section className="quest-board">
         <p className="empty-note">아직 Speaking 세션이 없습니다.</p>
@@ -229,56 +231,41 @@ function SpeakingSection({ student }: { student: StudentDashboard }) {
 
   return (
     <section className="log-section">
-      {grouped.map((group) => {
-        const isOpen = openTopic === group.topic;
-        const first = group.attempts[group.attempts.length - 1];
-        const latest = group.attempts[0];
-        const lift = latest.score - first.score;
-
-        return (
-          <article className={`log-card ${isOpen ? "open" : ""}`} key={group.topic}>
-            <button
-              className="log-card-head"
-              onClick={() => setOpenTopic(isOpen ? null : group.topic)}
-              type="button"
-            >
-              <div className="log-card-title">
-                <p className="tiny-label">Topic</p>
-                <strong>{group.topic}</strong>
-              </div>
-              <div className="log-card-stats">
-                <span>
-                  {group.attempts.length}회 시도
-                </span>
-                <span className={lift >= 0 ? "lift positive" : "lift negative"}>
-                  {first.score} → {latest.score} {lift >= 0 ? `+${lift}` : lift}
-                </span>
-              </div>
-            </button>
-            {isOpen ? (
-              <div className="log-card-body">
-                {group.attempts.map((attempt, index) => (
-                  <SpeakingAttemptCard
-                    attempt={attempt}
-                    attemptIndex={group.attempts.length - index}
-                    key={attempt.id}
-                  />
-                ))}
-              </div>
-            ) : null}
-          </article>
-        );
-      })}
+      {sessions.map((session) => (
+        <SessionRowCard
+          key={session.id}
+          session={session}
+          isOpen={openId === session.id}
+          onToggle={() => setOpenId(openId === session.id ? null : session.id)}
+        >
+          {session.attempts.map((attempt, index) => (
+            <SpeakingAttemptCard
+              attempt={attempt}
+              attemptIndex={index + 1}
+              isBest={attempt.score === session.bestScore}
+              key={attempt.id}
+            />
+          ))}
+        </SessionRowCard>
+      ))}
     </section>
   );
 }
 
-function SpeakingAttemptCard({ attempt, attemptIndex }: { attempt: SpeakingAttempt; attemptIndex: number }) {
+function SpeakingAttemptCard({
+  attempt,
+  attemptIndex,
+  isBest
+}: {
+  attempt: SpeakingAttempt;
+  attemptIndex: number;
+  isBest: boolean;
+}) {
   return (
     <div className="attempt-card">
       <div className="attempt-head">
         <div>
-          <p className="tiny-label">Try {attemptIndex}</p>
+          <p className="tiny-label">Try {attemptIndex}{isBest ? " · 최고 점수" : ""}</p>
           <span className="attempt-date">{attempt.date}</span>
         </div>
         <strong className="attempt-score">{attempt.score}</strong>
@@ -323,28 +310,106 @@ function SpeakingAttemptCard({ attempt, attemptIndex }: { attempt: SpeakingAttem
   );
 }
 
-function groupAttemptsByTopic(attempts: SpeakingAttempt[]) {
+type SessionRow<TAttempt> = {
+  id: string;
+  date: string;
+  topic: string;
+  attempts: TAttempt[];
+  initialScore: number;
+  finalScore: number;
+  bestScore: number;
+  delta: number;
+};
+
+function SessionRowCard<TAttempt>({
+  session,
+  isOpen,
+  onToggle,
+  children
+}: {
+  session: SessionRow<TAttempt>;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  const tries = session.attempts.length;
+  const showArc = tries > 1;
+  const lift = session.delta;
+
+  return (
+    <article className={`log-card ${isOpen ? "open" : ""}`}>
+      <button className="log-card-head" onClick={onToggle} type="button">
+        <div className="log-card-title">
+          <p className="tiny-label">{formatSessionDate(session.date)}</p>
+          <strong>{session.topic}</strong>
+        </div>
+        <div className="log-card-stats">
+          <span>{tries}번 시도</span>
+          {showArc ? (
+            <>
+              <span className={lift >= 0 ? "lift positive" : "lift negative"}>
+                {session.initialScore} → {session.finalScore} {lift >= 0 ? `+${lift}` : lift}
+              </span>
+              {session.bestScore !== session.finalScore ? (
+                <span className="lift positive">최고 {session.bestScore}</span>
+              ) : null}
+            </>
+          ) : (
+            <span className="attempt-score">{session.finalScore}점</span>
+          )}
+        </div>
+      </button>
+      {isOpen ? <div className="log-card-body">{children}</div> : null}
+    </article>
+  );
+}
+
+function formatSessionDate(date: string): string {
+  // "2026-05-24" → "2026.05.24"
+  return date.replace(/-/g, ".");
+}
+
+function groupSpeakingByDate(attempts: SpeakingAttempt[]): SessionRow<SpeakingAttempt>[] {
+  // attempts arrive newest-first from dashboard. Group by date+topic, then
+  // reverse within each group so the body lists Try 1 → Try N oldest-first.
   const map = new Map<string, SpeakingAttempt[]>();
   for (const attempt of attempts) {
-    const list = map.get(attempt.topic) ?? [];
+    const key = `${attempt.date}::${attempt.topic}`;
+    const list = map.get(key) ?? [];
     list.push(attempt);
-    map.set(attempt.topic, list);
+    map.set(key, list);
   }
-  return Array.from(map.entries()).map(([topic, group]) => ({
-    topic,
-    attempts: group
-  }));
+
+  const rows: SessionRow<SpeakingAttempt>[] = [];
+  for (const [key, group] of map.entries()) {
+    const ordered = [...group].reverse(); // oldest first
+    const [date, topic] = key.split("::");
+    rows.push({
+      id: key,
+      date,
+      topic,
+      attempts: ordered,
+      initialScore: ordered[0].score,
+      finalScore: ordered[ordered.length - 1].score,
+      bestScore: Math.max(...ordered.map((a) => a.score)),
+      delta: ordered[ordered.length - 1].score - ordered[0].score
+    });
+  }
+
+  return rows.sort((a, b) => b.date.localeCompare(a.date));
 }
 
 /* ---------- Writing ---------- */
+type WritingAttempt = LessonHistoryItem & { snapshot?: EvaluationSnapshot };
+
 function WritingSection({ student }: { student: StudentDashboard }) {
-  const writingSessions = useMemo(
-    () => buildWritingSessions(student.lessonHistory, student.evaluationSnapshots),
+  const sessions = useMemo(
+    () => groupWritingByDate(student.lessonHistory, student.evaluationSnapshots),
     [student.lessonHistory, student.evaluationSnapshots]
   );
-  const [openSessionId, setOpenSessionId] = useState<string | null>(writingSessions[0]?.id ?? null);
+  const [openId, setOpenId] = useState<string | null>(sessions[0]?.id ?? null);
 
-  if (writingSessions.length === 0) {
+  if (sessions.length === 0) {
     return (
       <section className="quest-board">
         <p className="empty-note">아직 Writing 세션이 없습니다.</p>
@@ -354,89 +419,137 @@ function WritingSection({ student }: { student: StudentDashboard }) {
 
   return (
     <section className="log-section">
-      {writingSessions.map((session) => {
-        const isOpen = openSessionId === session.id;
-        return (
-          <article className={`log-card ${isOpen ? "open" : ""}`} key={session.id}>
-            <button
-              className="log-card-head"
-              onClick={() => setOpenSessionId(isOpen ? null : session.id)}
-              type="button"
-            >
-              <div className="log-card-title">
-                <p className="tiny-label">{session.date}</p>
-                <strong>{session.title}</strong>
-              </div>
-              <div className="log-card-stats">
-                <span className="attempt-score">{session.score}점</span>
-              </div>
-            </button>
-            {isOpen ? (
-              <div className="log-card-body">
-                <div className="attempt-card">
-                  {session.prompt ? (
-                    <div className="attempt-transcript">
-                      <p className="tiny-label">받은 질문</p>
-                      <p>{session.prompt}</p>
-                    </div>
-                  ) : null}
-                  {session.rawInput ? (
-                    <div className="attempt-transcript">
-                      <p className="tiny-label">학생의 글</p>
-                      <p>{session.rawInput}</p>
-                    </div>
-                  ) : null}
-                  {session.snapshot ? (
-                    <>
-                      {session.snapshot.metrics.length > 0 ? (
-                        <div className="metric-chips">
-                          {session.snapshot.metrics.map((metric) => (
-                            <span key={metric.label}>
-                              {metric.label} {metric.score}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-                      {session.snapshot.strengths.length > 0 ? (
-                        <div className="attempt-references">
-                          <p className="tiny-label">잘한 점</p>
-                          {session.snapshot.strengths.map((item) => (
-                            <p key={item} className="strength-line">
-                              {item}
-                            </p>
-                          ))}
-                        </div>
-                      ) : null}
-                      {session.snapshot.needsPractice.length > 0 ? (
-                        <div className="attempt-references">
-                          <p className="tiny-label">더 연습할 점</p>
-                          {session.snapshot.needsPractice.map((item) => (
-                            <p key={item} className="practice-line">
-                              {item}
-                            </p>
-                          ))}
-                        </div>
-                      ) : null}
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-          </article>
-        );
-      })}
+      {sessions.map((session) => (
+        <SessionRowCard
+          key={session.id}
+          session={session}
+          isOpen={openId === session.id}
+          onToggle={() => setOpenId(openId === session.id ? null : session.id)}
+        >
+          {session.attempts.map((attempt, index) => (
+            <WritingAttemptCard
+              attempt={attempt}
+              attemptIndex={index + 1}
+              isBest={attempt.score === session.bestScore}
+              prompt={session.topic}
+              key={attempt.id}
+            />
+          ))}
+        </SessionRowCard>
+      ))}
     </section>
   );
 }
 
-function buildWritingSessions(history: LessonHistoryItem[], snapshots: EvaluationSnapshot[]) {
-  const writingHistory = history.filter((item) => item.mode === "writing");
-  const writingSnapshots = snapshots.filter((snapshot) => snapshot.mode === "writing");
+function WritingAttemptCard({
+  attempt,
+  attemptIndex,
+  isBest,
+  prompt
+}: {
+  attempt: WritingAttempt;
+  attemptIndex: number;
+  isBest: boolean;
+  prompt: string;
+}) {
+  const isRevision = attemptIndex > 1;
+  return (
+    <div className="attempt-card">
+      <div className="attempt-head">
+        <div>
+          <p className="tiny-label">
+            {isRevision ? `Rewrite ${attemptIndex - 1}` : "Draft 1"}
+            {isBest ? " · 최고 점수" : ""}
+          </p>
+          <span className="attempt-date">{attempt.date}</span>
+        </div>
+        <strong className="attempt-score">{attempt.score}</strong>
+      </div>
+      {prompt ? (
+        <div className="attempt-transcript">
+          <p className="tiny-label">받은 질문</p>
+          <p>{prompt}</p>
+        </div>
+      ) : null}
+      {attempt.rawInput ? (
+        <div className="attempt-transcript">
+          <p className="tiny-label">학생의 글</p>
+          <p>{attempt.rawInput}</p>
+        </div>
+      ) : null}
+      {attempt.snapshot?.metrics.length ? (
+        <div className="metric-chips">
+          {attempt.snapshot.metrics.map((metric) => (
+            <span key={metric.label}>
+              {metric.label} {metric.score}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {attempt.snapshot?.strengths.length ? (
+        <div className="attempt-references">
+          <p className="tiny-label">잘한 점</p>
+          {attempt.snapshot.strengths.map((item) => (
+            <p key={item} className="strength-line">
+              {item}
+            </p>
+          ))}
+        </div>
+      ) : null}
+      {attempt.snapshot?.needsPractice.length ? (
+        <div className="attempt-references">
+          <p className="tiny-label">더 연습할 점</p>
+          {attempt.snapshot.needsPractice.map((item) => (
+            <p key={item} className="practice-line">
+              {item}
+            </p>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
-  return writingHistory.map((item, index) => ({
+function groupWritingByDate(
+  history: LessonHistoryItem[],
+  snapshots: EvaluationSnapshot[]
+): SessionRow<WritingAttempt>[] {
+  const writingHistory = history.filter((item) => item.mode === "writing");
+  const writingSnapshots = snapshots.filter((s) => s.mode === "writing");
+
+  // Pair by index (both arrays arrive newest-first from the dashboard, with
+  // one snapshot inserted per learning_event in /api/learning-events).
+  const paired: WritingAttempt[] = writingHistory.map((item, i) => ({
     ...item,
-    snapshot: writingSnapshots[writingSnapshots.length - 1 - index] ?? writingSnapshots.at(-1)
+    snapshot: writingSnapshots[i]
   }));
+
+  // Group by date + prompt (prompt missing → date alone).
+  const map = new Map<string, WritingAttempt[]>();
+  for (const attempt of paired) {
+    const key = `${attempt.date}::${attempt.prompt ?? attempt.title}`;
+    const list = map.get(key) ?? [];
+    list.push(attempt);
+    map.set(key, list);
+  }
+
+  const rows: SessionRow<WritingAttempt>[] = [];
+  for (const [key, group] of map.entries()) {
+    const ordered = [...group].reverse(); // oldest first → Draft 1, Rewrite 1, ...
+    const [date, topic] = key.split("::");
+    rows.push({
+      id: key,
+      date,
+      topic: topic || "Writing quest",
+      attempts: ordered,
+      initialScore: ordered[0].score,
+      finalScore: ordered[ordered.length - 1].score,
+      bestScore: Math.max(...ordered.map((a) => a.score)),
+      delta: ordered[ordered.length - 1].score - ordered[0].score
+    });
+  }
+
+  return rows.sort((a, b) => b.date.localeCompare(a.date));
 }
 
 /* ---------- Rewards ---------- */
