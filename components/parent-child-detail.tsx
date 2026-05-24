@@ -335,28 +335,117 @@ function SessionRowCard<TAttempt>({
   const tries = session.attempts.length;
   const showArc = tries > 1;
   const lift = session.delta;
+  const liftSign = lift > 0 ? `+${lift}` : `${lift}`;
+  const liftTone = lift > 0 ? "var(--moss)" : lift < 0 ? "var(--accent)" : "var(--ink-soft)";
 
   return (
     <article className={`log-card ${isOpen ? "open" : ""}`}>
-      <button className="log-card-head" onClick={onToggle} type="button">
-        <div className="log-card-title">
-          <p className="tiny-label">{formatSessionDate(session.date)}</p>
-          <strong>{session.topic}</strong>
+      <button
+        className="log-card-head"
+        onClick={onToggle}
+        type="button"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          width: "100%",
+          textAlign: "left"
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p className="tiny-label" style={{ whiteSpace: "nowrap" }}>
+            <span>{formatSessionDate(session.date)}</span>
+            <span style={{ opacity: 0.5, margin: "0 6px" }}>·</span>
+            <span>{tries}번 시도</span>
+          </p>
+          <strong style={{ display: "block", marginTop: 4, lineHeight: 1.45 }}>
+            {session.topic}
+          </strong>
         </div>
-        <div className="log-card-stats">
-          <span>{tries}번 시도</span>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {showArc ? (
-            <>
-              <span className={lift >= 0 ? "lift positive" : "lift negative"}>
-                {session.initialScore} → {session.finalScore} {lift >= 0 ? `+${lift}` : lift}
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 12px",
+                borderRadius: 999,
+                background: "var(--sand)",
+                color: "var(--ink-soft)",
+                fontSize: "0.85rem",
+                fontVariantNumeric: "tabular-nums",
+                whiteSpace: "nowrap"
+              }}
+            >
+              <strong style={{ color: "var(--ink)", fontWeight: 600 }}>
+                {session.initialScore}
+              </strong>
+              <span style={{ opacity: 0.5 }}>→</span>
+              <strong style={{ color: "var(--ink)", fontWeight: 600 }}>
+                {session.finalScore}
+              </strong>
+              <span
+                style={{
+                  marginLeft: 4,
+                  color: liftTone,
+                  fontWeight: 600,
+                  fontSize: "0.78rem"
+                }}
+              >
+                {liftSign}
               </span>
-              {session.bestScore !== session.finalScore ? (
-                <span className="lift positive">최고 {session.bestScore}</span>
-              ) : null}
-            </>
+            </span>
           ) : (
-            <span className="attempt-score">{session.finalScore}점</span>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "6px 12px",
+                borderRadius: 999,
+                background: "var(--sand)",
+                color: "var(--ink)",
+                fontSize: "0.9rem",
+                fontWeight: 600,
+                fontVariantNumeric: "tabular-nums",
+                whiteSpace: "nowrap"
+              }}
+            >
+              {session.finalScore}점
+            </span>
           )}
+          {showArc && session.bestScore !== session.finalScore ? (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "6px 10px",
+                borderRadius: 999,
+                background: "var(--moss-wash)",
+                color: "var(--moss)",
+                fontSize: "0.78rem",
+                fontWeight: 600,
+                fontVariantNumeric: "tabular-nums",
+                whiteSpace: "nowrap"
+              }}
+            >
+              최고 {session.bestScore}
+            </span>
+          ) : null}
+          <span
+            aria-hidden="true"
+            style={{
+              fontSize: 14,
+              color: "var(--ink-soft)",
+              marginLeft: 4,
+              transition: "transform 0.2s ease",
+              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)"
+            }}
+          >
+            ▾
+          </span>
         </div>
       </button>
       {isOpen ? <div className="log-card-body">{children}</div> : null}
