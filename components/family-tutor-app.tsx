@@ -4,6 +4,10 @@ import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { AvatarButton } from "@/components/avatar";
 import { Envelope, Microphone, Notebook, Star } from "@/components/illustrations";
 import { ScoreHistory } from "@/components/score-history";
+import {
+  SpeakingHistorySection,
+  WritingHistorySection
+} from "@/components/session-history";
 import type {
   DashboardData,
   EvaluationSnapshot,
@@ -1201,30 +1205,59 @@ function renderPracticeMirror(typed: string, target: string) {
 
 function ProgressView({ activeStudent }: { activeStudent: StudentDashboard }) {
   return (
-    <section className="quest-board">
-      <div className="quest-title-row">
-        <div>
-          <p className="tiny-label">Progress map</p>
-          <h2>Score climb</h2>
-        </div>
-      </div>
-      <ScoreHistory
-        points={activeStudent.progressPoints}
-        title="점수 변화 히스토리"
-        caption="표에서 정확한 수치를, 그래프에서 변화 흐름을 함께 확인해 보세요."
-      />
-      <div className="skill-cloud">
-        {activeStudent.skillStates.map((skill) => (
-          <div className="skill-token" key={skill.id}>
-            <strong>{skill.skill}</strong>
-            <span>{skill.score}/100</span>
-            <div className="meter">
-              <i style={{ width: `${skill.score}%` }} />
-            </div>
+    <div className="progress-view-stack" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <section className="quest-board">
+        <div className="quest-title-row">
+          <div>
+            <p className="tiny-label">Progress map</p>
+            <h2>Score climb</h2>
           </div>
-        ))}
-      </div>
-    </section>
+        </div>
+        <ScoreHistory
+          points={activeStudent.progressPoints}
+          title="점수 변화 히스토리"
+          caption="표에서 정확한 수치를, 그래프에서 변화 흐름을 함께 확인해 보세요."
+        />
+        <div className="skill-cloud">
+          {activeStudent.skillStates.map((skill) => (
+            <div className="skill-token" key={skill.id}>
+              <strong>{skill.skill}</strong>
+              <span>{skill.score}/100</span>
+              <div className="meter">
+                <i style={{ width: `${skill.score}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="quest-board">
+        <div className="quest-title-row">
+          <div>
+            <p className="tiny-label">My History</p>
+            <h2>내가 말한 것들</h2>
+          </div>
+        </div>
+        <SpeakingHistorySection
+          attempts={activeStudent.speakingAttempts}
+          emptyMessage="아직 말한 기록이 없어요. Play 탭에서 Speaking에 도전해 보세요."
+        />
+      </section>
+
+      <section className="quest-board">
+        <div className="quest-title-row">
+          <div>
+            <p className="tiny-label">My History</p>
+            <h2>내가 쓴 것들</h2>
+          </div>
+        </div>
+        <WritingHistorySection
+          lessonHistory={activeStudent.lessonHistory}
+          evaluationSnapshots={activeStudent.evaluationSnapshots}
+          emptyMessage="아직 쓴 기록이 없어요. Play 탭에서 Writing에 도전해 보세요."
+        />
+      </section>
+    </div>
   );
 }
 
