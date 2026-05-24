@@ -133,6 +133,8 @@ export type LessonHistoryItem = {
   mode: TaskMode;
   title: string;
   score: number;
+  prompt?: string;
+  rawInput?: string;
 };
 
 export type ProgressPoint = {

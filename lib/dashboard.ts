@@ -9,21 +9,50 @@ import {
 import type {
   DailyTask,
   DashboardData,
+  EvaluationSnapshot,
   FamilyUser,
   LessonHistoryItem,
+  MemoryNote,
   Observation,
+  ProgressPoint,
   SkillState,
+  SpeakingAttempt,
   Student,
   StudentDashboard,
   TaskMode
 } from "@/lib/types";
 
+type FamilySupabase = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
+
 export async function loadDashboardData(currentUser: FamilyUser): Promise<DashboardData> {
   const supabase = getSupabaseAdmin();
 
-  if (!supabase || currentUser.role === "parent") {
+  if (!supabase) {
     const demo = createDemoDashboard(currentUser);
     return await applyAdaptiveTasks(demo);
+  }
+
+  if (currentUser.role === "parent") {
+    const { data: studentRows } = await supabase
+      .from("students")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    const rows = studentRows ?? [];
+    if (rows.length === 0) {
+      const demo = createDemoDashboard(currentUser);
+      return await applyAdaptiveTasks(demo);
+    }
+
+    const entries = await Promise.all(
+      rows.map((row) => buildStudentEntry(supabase, mapStudent(row), { generateMissingTasks: false }))
+    );
+
+    return {
+      currentUser,
+      activeStudentId: rows[0].id,
+      students: entries
+    };
   }
 
   const student = await ensureDefaultStudent(currentUser);
@@ -31,13 +60,31 @@ export async function loadDashboardData(currentUser: FamilyUser): Promise<Dashbo
     return await applyAdaptiveTasks(createDemoDashboard(currentUser));
   }
 
+  const entry = await buildStudentEntry(supabase, student, { generateMissingTasks: true });
+
+  return {
+    currentUser,
+    activeStudentId: student.id,
+    students: [entry]
+  };
+}
+
+async function buildStudentEntry(
+  supabase: FamilySupabase,
+  student: Student,
+  opts: { generateMissingTasks: boolean }
+): Promise<StudentDashboard> {
   const today = new Date().toISOString().slice(0, 10);
+  const fallback = pickDemoFallback(student);
 
   const [
     todayTasksResult,
     observationsResult,
     skillsResult,
-    eventsResult
+    eventsResult,
+    speakingAttemptsResult,
+    snapshotsResult,
+    memoryNotesResult
   ] = await Promise.all([
     supabase
       .from("daily_tasks")
@@ -51,25 +98,46 @@ export async function loadDashboardData(currentUser: FamilyUser): Promise<Dashbo
       .eq("student_id", student.id)
       .eq("status", "active")
       .order("last_seen", { ascending: false })
-      .limit(8),
+      .limit(12),
     supabase
       .from("skill_states")
       .select("*")
       .eq("student_id", student.id)
       .order("updated_at", { ascending: false })
-      .limit(8),
+      .limit(12),
     supabase
       .from("learning_events")
+      .select("*, daily_tasks(prompt)")
+      .eq("student_id", student.id)
+      .order("created_at", { ascending: false })
+      .limit(30),
+    supabase
+      .from("speaking_attempts")
       .select("*")
       .eq("student_id", student.id)
       .order("created_at", { ascending: false })
-      .limit(8)
+      .limit(30),
+    supabase
+      .from("evaluation_snapshots")
+      .select("*")
+      .eq("student_id", student.id)
+      .order("evaluated_at", { ascending: false })
+      .limit(30),
+    supabase
+      .from("memory_notes")
+      .select("*")
+      .eq("student_id", student.id)
+      .order("created_at", { ascending: false })
+      .limit(30)
   ]);
 
-  const fallback = demoStudents.find((entry) => entry.student.id === currentUser.studentId) ?? demoStudents[0];
   const recentObservations = (observationsResult.data ?? []).map(mapObservation);
   const skillStates = (skillsResult.data ?? []).map(mapSkillState);
   const todayTasks = (todayTasksResult.data ?? []).map(mapDailyTask);
+  const lessonHistory = (eventsResult.data ?? []).map(mapLessonHistoryItem);
+  const speakingAttempts = (speakingAttemptsResult.data ?? []).map(mapSpeakingAttempt);
+  const evaluationSnapshots = (snapshotsResult.data ?? []).map(mapEvaluationSnapshot);
+  const memoryNotes = (memoryNotesResult.data ?? []).map(mapMemoryNote);
 
   const context: StudentContext = {
     student,
@@ -77,45 +145,83 @@ export async function loadDashboardData(currentUser: FamilyUser): Promise<Dashbo
     recentObservations: recentObservations.length ? recentObservations : fallback.recentObservations
   };
 
-  const speakingTask = await ensureTodayTask({
-    supabase,
-    studentId: student.id,
-    today,
-    mode: "speaking",
-    existing: todayTasks.find((t) => t.mode === "speaking"),
-    context
-  });
+  const existingSpeaking = todayTasks.find((t) => t.mode === "speaking");
+  const existingWriting = todayTasks.find((t) => t.mode === "writing");
 
-  const writingTask = await ensureTodayTask({
-    supabase,
-    studentId: student.id,
-    today,
-    mode: "writing",
-    existing: todayTasks.find((t) => t.mode === "writing"),
-    context
-  });
+  const speakingTask = opts.generateMissingTasks
+    ? await ensureTodayTask({
+        supabase,
+        studentId: student.id,
+        today,
+        mode: "speaking",
+        existing: existingSpeaking,
+        context
+      })
+    : existingSpeaking ?? fallback.speakingTask;
 
-  const studentDashboard: StudentDashboard = {
+  const writingTask = opts.generateMissingTasks
+    ? await ensureTodayTask({
+        supabase,
+        studentId: student.id,
+        today,
+        mode: "writing",
+        existing: existingWriting,
+        context
+      })
+    : existingWriting ?? fallback.writingTask;
+
+  const progressPoints = buildProgressPointsFromSnapshots(evaluationSnapshots, fallback.progressPoints);
+
+  return {
     student,
     todayTask: speakingTask,
     speakingTask,
     writingTask,
     recentObservations,
     skillStates,
-    lessonHistory: (eventsResult.data ?? []).map(mapLessonHistoryItem),
-    progressPoints: fallback.progressPoints,
-    evaluationSnapshots: fallback.evaluationSnapshots,
-    speakingAttempts: fallback.speakingAttempts,
-    memoryNotes: fallback.memoryNotes,
+    lessonHistory,
+    progressPoints,
+    evaluationSnapshots,
+    speakingAttempts,
+    memoryNotes,
     rewardRules: fallback.rewardRules,
     weeklySummary: fallback.weeklySummary
   };
+}
 
-  return {
-    currentUser,
-    activeStudentId: student.id,
-    students: [studentDashboard]
-  };
+function pickDemoFallback(student: Student) {
+  const byName = demoStudents.find(
+    (entry) => entry.student.displayName.toLowerCase() === student.displayName.toLowerCase()
+  );
+  return byName ?? demoStudents[0];
+}
+
+function buildProgressPointsFromSnapshots(
+  snapshots: EvaluationSnapshot[],
+  fallback: ProgressPoint[]
+): ProgressPoint[] {
+  if (snapshots.length === 0) {
+    return fallback;
+  }
+
+  const byDate = new Map<string, { speaking?: number; writing?: number; order: number }>();
+  let order = 0;
+  for (const s of [...snapshots].reverse()) {
+    if (!byDate.has(s.date)) {
+      byDate.set(s.date, { order: order++ });
+    }
+    const entry = byDate.get(s.date)!;
+    if (s.mode === "speaking") entry.speaking = s.overallScore;
+    if (s.mode === "writing") entry.writing = s.overallScore;
+  }
+
+  const sorted = Array.from(byDate.entries()).sort((a, b) => a[1].order - b[1].order);
+  return sorted.map(([date, scores]) => ({
+    date,
+    speaking: scores.speaking ?? 0,
+    writing: scores.writing ?? 0,
+    confidence: Math.max(scores.speaking ?? 0, scores.writing ?? 0)
+  }));
 }
 
 async function ensureTodayTask(args: {
@@ -241,7 +347,7 @@ export async function ensureDefaultStudent(currentUser?: FamilyUser): Promise<St
 }
 
 async function linkFamilyUserToStudent(
-  supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
+  supabase: FamilySupabase,
   email: string,
   studentId: string
 ) {
@@ -298,13 +404,68 @@ function mapSkillState(row: Record<string, any>): SkillState {
 }
 
 function mapLessonHistoryItem(row: Record<string, any>): LessonHistoryItem {
-  const score = Number(row.feedback_json?.score ?? row.feedback_json?.overallScore ?? 60);
+  const score = Number(
+    row.feedback_json?.attempt?.score ??
+      row.feedback_json?.evaluationSnapshot?.overallScore ??
+      row.feedback_json?.overallScore ??
+      row.feedback_json?.score ??
+      60
+  );
+
+  const prompt =
+    row.daily_tasks?.prompt ??
+    row.feedback_json?.attempt?.topic ??
+    (row.mode === "speaking" ? row.topic : undefined);
 
   return {
     id: row.id,
     date: String(row.created_at).slice(0, 10),
     mode: row.mode,
-    title: row.topic ?? (row.mode === "writing" ? "Writing quest" : "Speaking quest"),
-    score
+    title: row.topic ?? prompt ?? (row.mode === "writing" ? "Writing quest" : "Speaking quest"),
+    score,
+    prompt: typeof prompt === "string" ? prompt : undefined,
+    rawInput: typeof row.raw_input === "string" ? row.raw_input : undefined
   };
+}
+
+function mapSpeakingAttempt(row: Record<string, any>): SpeakingAttempt {
+  return {
+    id: row.id,
+    date: String(row.created_at).slice(0, 10),
+    topic: row.topic ?? "",
+    transcript: row.transcript ?? "",
+    score: Number(row.score ?? 0),
+    metrics: Array.isArray(row.metrics) ? row.metrics : [],
+    feedbackSections: Array.isArray(row.feedback_sections) ? row.feedback_sections : [],
+    referenceSentences: Array.isArray(row.reference_sentences) ? row.reference_sentences : [],
+    memoryNotes: []
+  };
+}
+
+function mapEvaluationSnapshot(row: Record<string, any>): EvaluationSnapshot {
+  return {
+    id: row.id,
+    date: formatShortDate(row.evaluated_at),
+    mode: row.mode,
+    overallScore: Number(row.overall_score ?? 0),
+    metrics: Array.isArray(row.metrics) ? row.metrics : [],
+    strengths: Array.isArray(row.strengths) ? row.strengths : [],
+    needsPractice: Array.isArray(row.needs_practice) ? row.needs_practice : []
+  };
+}
+
+function mapMemoryNote(row: Record<string, any>): MemoryNote {
+  return {
+    id: row.id,
+    date: String(row.created_at).slice(0, 10),
+    type: row.type,
+    claim: row.claim,
+    evidence: row.evidence
+  };
+}
+
+function formatShortDate(timestamp: string): string {
+  const slice = String(timestamp).slice(5, 10);
+  const [mm, dd] = slice.split("-");
+  return `${Number(mm)}/${dd}`;
 }

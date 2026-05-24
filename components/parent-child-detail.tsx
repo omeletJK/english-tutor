@@ -342,6 +342,7 @@ function WritingSection({ student }: { student: StudentDashboard }) {
     () => buildWritingSessions(student.lessonHistory, student.evaluationSnapshots),
     [student.lessonHistory, student.evaluationSnapshots]
   );
+  const [openSessionId, setOpenSessionId] = useState<string | null>(writingSessions[0]?.id ?? null);
 
   if (writingSessions.length === 0) {
     return (
@@ -353,52 +354,77 @@ function WritingSection({ student }: { student: StudentDashboard }) {
 
   return (
     <section className="log-section">
-      {writingSessions.map((session) => (
-        <article className="log-card open" key={session.id}>
-          <div className="log-card-head no-toggle">
-            <div className="log-card-title">
-              <p className="tiny-label">{session.date}</p>
-              <strong>{session.title}</strong>
-            </div>
-            <div className="log-card-stats">
-              <span className="attempt-score">{session.score}점</span>
-            </div>
-          </div>
-          {session.snapshot ? (
-            <div className="log-card-body">
-              <div className="attempt-card">
-                <div className="metric-chips">
-                  {session.snapshot.metrics.map((metric) => (
-                    <span key={metric.label}>
-                      {metric.label} {metric.score}
-                    </span>
-                  ))}
-                </div>
-                {session.snapshot.strengths.length > 0 ? (
-                  <div className="attempt-references">
-                    <p className="tiny-label">잘한 점</p>
-                    {session.snapshot.strengths.map((item) => (
-                      <p key={item} className="strength-line">
-                        {item}
-                      </p>
-                    ))}
-                  </div>
-                ) : null}
-                {session.snapshot.needsPractice.length > 0 ? (
-                  <div className="attempt-references">
-                    <p className="tiny-label">더 연습할 점</p>
-                    {session.snapshot.needsPractice.map((item) => (
-                      <p key={item} className="practice-line">
-                        {item}
-                      </p>
-                    ))}
-                  </div>
-                ) : null}
+      {writingSessions.map((session) => {
+        const isOpen = openSessionId === session.id;
+        return (
+          <article className={`log-card ${isOpen ? "open" : ""}`} key={session.id}>
+            <button
+              className="log-card-head"
+              onClick={() => setOpenSessionId(isOpen ? null : session.id)}
+              type="button"
+            >
+              <div className="log-card-title">
+                <p className="tiny-label">{session.date}</p>
+                <strong>{session.title}</strong>
               </div>
-            </div>
-          ) : null}
-        </article>
-      ))}
+              <div className="log-card-stats">
+                <span className="attempt-score">{session.score}점</span>
+              </div>
+            </button>
+            {isOpen ? (
+              <div className="log-card-body">
+                <div className="attempt-card">
+                  {session.prompt ? (
+                    <div className="attempt-transcript">
+                      <p className="tiny-label">받은 질문</p>
+                      <p>{session.prompt}</p>
+                    </div>
+                  ) : null}
+                  {session.rawInput ? (
+                    <div className="attempt-transcript">
+                      <p className="tiny-label">학생의 글</p>
+                      <p>{session.rawInput}</p>
+                    </div>
+                  ) : null}
+                  {session.snapshot ? (
+                    <>
+                      {session.snapshot.metrics.length > 0 ? (
+                        <div className="metric-chips">
+                          {session.snapshot.metrics.map((metric) => (
+                            <span key={metric.label}>
+                              {metric.label} {metric.score}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                      {session.snapshot.strengths.length > 0 ? (
+                        <div className="attempt-references">
+                          <p className="tiny-label">잘한 점</p>
+                          {session.snapshot.strengths.map((item) => (
+                            <p key={item} className="strength-line">
+                              {item}
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
+                      {session.snapshot.needsPractice.length > 0 ? (
+                        <div className="attempt-references">
+                          <p className="tiny-label">더 연습할 점</p>
+                          {session.snapshot.needsPractice.map((item) => (
+                            <p key={item} className="practice-line">
+                              {item}
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </article>
+        );
+      })}
     </section>
   );
 }
