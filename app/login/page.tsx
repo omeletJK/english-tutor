@@ -10,7 +10,6 @@ type LoginPageProps = {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const entries = await listFamilyLoginEntries();
-  const placeholderEmail = entries[0]?.email ?? "you@example.com";
 
   return (
     <main className="login-playground">
@@ -22,22 +21,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <h1>Who is reading today?</h1>
           </div>
         </div>
-        <label htmlFor="email">Email</label>
-        <input id="email" name="email" type="email" autoComplete="email" placeholder={placeholderEmail} />
-        {params.error ? <p className="form-error">등록된 가족 이메일이 아닙니다.</p> : null}
-        <button type="submit" className="quest-button">
-          Start
-        </button>
+        {params.error ? <p className="form-error">등록된 가족 사용자가 아닙니다.</p> : null}
         <div className="quick-login" aria-label="Quick family login">
           {entries.map((entry) => (
             <button name="quickEmail" value={entry.email} type="submit" key={entry.email}>
               {entry.label}
             </button>
-          ))}
-        </div>
-        <div className="login-hints">
-          {entries.map((entry) => (
-            <span key={entry.email}>{entry.email}</span>
           ))}
         </div>
       </form>
