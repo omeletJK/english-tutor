@@ -227,9 +227,15 @@ type DayBucket = {
 function groupByDate(tries: DailyTry[]): DayBucket[] {
   if (tries.length === 0) return [];
 
-  // tries arrive newest-first from the dashboard, but date strings are
-  // YYYY-MM-DD so a lex sort is also chronological. Push oldest first.
-  const oldestFirst = [...tries].sort((a, b) => a.date.localeCompare(b.date));
+  // Dashboard returns attempts in created_at DESC order. Sorting by date
+  // string alone does NOT reorder same-date items, so a stable sort on the
+  // newest-first input still leaves each day's scores in newest-first
+  // order — which would make scores[last] the OLDEST try, breaking
+  // `final = scores[last]`.
+  //
+  // Reverse first to get oldest-first overall; then group preserves the
+  // intra-day chronology.
+  const oldestFirst = [...tries].reverse();
 
   const map = new Map<string, number[]>();
   for (const t of oldestFirst) {
@@ -238,12 +244,14 @@ function groupByDate(tries: DailyTry[]): DayBucket[] {
     map.set(t.date, list);
   }
 
-  return Array.from(map.entries()).map(([date, scores]) => ({
-    date,
-    scores,
-    final: scores[scores.length - 1],
-    best: Math.max(...scores)
-  }));
+  return Array.from(map.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, scores]) => ({
+      date,
+      scores,
+      final: scores[scores.length - 1],
+      best: Math.max(...scores)
+    }));
 }
 
 function yForScore(score: number) {
