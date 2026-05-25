@@ -70,6 +70,7 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const discardRecordingRef = useRef(false);
   const referenceAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const activeStudent = useMemo(
@@ -269,6 +270,7 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
       audioChunksRef.current = [];
+      discardRecordingRef.current = false;
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
@@ -276,6 +278,12 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
       };
       recorder.onstop = () => {
         stream.getTracks().forEach((track) => track.stop());
+        if (discardRecordingRef.current) {
+          discardRecordingRef.current = false;
+          audioChunksRef.current = [];
+          setRecordingState("idle");
+          return;
+        }
         void submitSpeakingAudio(new Blob(audioChunksRef.current, { type: "audio/webm" }));
       };
       mediaRecorderRef.current = recorder;
@@ -291,6 +299,18 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
       setRecordingState("evaluating");
       mediaRecorderRef.current.stop();
     }
+  }
+
+  function cancelRecording() {
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state === "recording") {
+      discardRecordingRef.current = true;
+      recorder.stop();
+    } else {
+      audioChunksRef.current = [];
+      setRecordingState("idle");
+    }
+    setRecordingError("");
   }
 
   async function submitSpeakingAudio(audioBlob: Blob) {
@@ -343,6 +363,35 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
   async function logOut() {
     await fetch("/api/session", { method: "DELETE" });
     window.location.href = "/login";
+  }
+
+  async function refreshTask(mode: TaskMode) {
+    const response = await fetch("/api/tasks/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode })
+    });
+    if (!response.ok) {
+      return;
+    }
+    const { task } = await response.json();
+    if (!task) return;
+    updateActiveStudent((student) => ({
+      ...student,
+      ...(mode === "speaking" ? { speakingTask: task } : { writingTask: task }),
+      todayTask: task
+    }));
+    if (mode === "writing") {
+      setFeedback(null);
+      setWritingDraft("");
+      setWritingPracticeInputs({});
+      setWritingScoreTrail([]);
+      setRetryMode(false);
+    } else {
+      setSpeakingFeedback(null);
+      setHeardReference(null);
+      setRecordingError("");
+    }
   }
 
   return (
@@ -474,6 +523,7 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
                     heardReference={heardReference}
                     onRetryWriting={onRetryWriting}
                     onRetrySpeaking={onRetrySpeaking}
+                    refreshTask={refreshTask}
                     retryMode={retryMode}
                     setQuestMode={setQuestMode}
                     setWritingPracticeInput={setWritingPracticeInput}
@@ -483,6 +533,7 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
                     startRecording={startRecording}
                     startBrainstorming={startBrainstorming}
                     stopRecording={stopRecording}
+                    cancelRecording={cancelRecording}
                     writingDraft={writingDraft}
                     writingPracticeInputs={writingPracticeInputs}
                     writingScoreTrail={writingScoreTrail}
@@ -599,6 +650,7 @@ function PlayView({
   heardReference,
   onRetryWriting,
   onRetrySpeaking,
+  refreshTask,
   retryMode,
   setQuestMode,
   setWritingPracticeInput,
@@ -608,6 +660,7 @@ function PlayView({
   startRecording,
   startBrainstorming,
   stopRecording,
+  cancelRecording,
   writingDraft,
   writingPracticeInputs,
   writingScoreTrail
@@ -623,6 +676,7 @@ function PlayView({
   heardReference: ReferenceSentence | null;
   onRetryWriting: () => void;
   onRetrySpeaking: () => void;
+  refreshTask: (mode: TaskMode) => Promise<void>;
   retryMode: boolean;
   setQuestMode: (mode: TaskMode) => void;
   setWritingPracticeInput: (sentence: string, value: string) => void;
@@ -632,6 +686,7 @@ function PlayView({
   startRecording: () => Promise<void>;
   startBrainstorming: () => void;
   stopRecording: () => void;
+  cancelRecording: () => void;
   writingDraft: string;
   writingPracticeInputs: Record<string, string>;
   writingScoreTrail: WritingScoreTrailItem[];
@@ -659,6 +714,13 @@ function PlayView({
                 </div>
                 <h2>{activeStudent.speakingTask.prompt}</h2>
                 <p>녹음 버튼을 누르고 영어로 답해 보세요. 답변이 끝나면 전체 내용을 평가하고 더 자연스러운 문장으로 다시 말할 수 있게 도와줍니다.</p>
+                <button
+                  className="soft-button prompt-refresh"
+                  type="button"
+                  onClick={() => refreshTask("speaking")}
+                >
+                  ↻ 다른 주제 받기
+                </button>
               </div>
             </div>
 
@@ -676,16 +738,28 @@ function PlayView({
               </div>
               <div className="record-actions">
                 {recordingState === "recording" ? (
-                  <button className="quest-submit stop" onClick={stopRecording} type="button">
-                    Stop recording
-                  </button>
+                  <div className="record-buttons">
+                    <button className="quest-submit stop" onClick={stopRecording} type="button">
+                      Stop recording
+                    </button>
+                    <button
+                      className="soft-button record-reset"
+                      onClick={cancelRecording}
+                      type="button"
+                      title="녹음한 내용을 버리고 처음부터 다시"
+                    >
+                      🔁 다시 시작
+                    </button>
+                  </div>
                 ) : (
                   <button className="quest-submit" onClick={startRecording} type="button" disabled={recordingState === "evaluating"}>
                     Start recording
                   </button>
                 )}
                 <p>
-                  녹음이 끝나면 평가 후 같은 주제로 다시 말합니다.
+                  {recordingState === "recording"
+                    ? "실수했으면 '다시 시작'을 눌러요. 멈춰야 평가가 시작돼요."
+                    : "녹음이 끝나면 평가 후 같은 주제로 다시 말합니다."}
                 </p>
               </div>
             </div>
@@ -731,6 +805,13 @@ function PlayView({
                 </div>
                 <h2>{activeStudent.writingTask.prompt}</h2>
                 <p>먼저 생각을 편하게 쓰고, 평가 후에는 더 좋은 문장으로 다시 작성해 점수를 올려 봅니다.</p>
+                <button
+                  className="soft-button prompt-refresh"
+                  type="button"
+                  onClick={() => refreshTask("writing")}
+                >
+                  ↻ 다른 주제 받기
+                </button>
               </div>
             </div>
             <button className="soft-button" onClick={startBrainstorming} type="button">

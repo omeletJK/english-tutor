@@ -512,6 +512,14 @@ select:focus {
   flex-shrink: 0;
 }
 
+.prompt-refresh {
+  align-self: flex-start;
+  margin-top: 8px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  min-height: 32px;
+}
+
 .prompt-card h2 {
   max-width: none;
   font-family: var(--font-display);
@@ -973,6 +981,30 @@ select:focus {
 
 .quest-submit.stop:hover {
   background: var(--accent);
+}
+
+.record-buttons {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.record-buttons .quest-submit {
+  margin-top: 0;
+}
+
+.record-reset {
+  width: 100%;
+  min-height: 36px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  border-color: var(--line-strong);
+  background: var(--sand);
+}
+
+.record-reset:hover {
+  background: var(--sand-deep);
+  color: var(--ink);
 }
 
 .soft-button {
