@@ -91,6 +91,7 @@ async function buildStudentEntry(
       .select("*")
       .eq("student_id", student.id)
       .eq("task_date", today)
+      .eq("status", "assigned")
       .order("created_at", { ascending: false }),
     supabase
       .from("observations")

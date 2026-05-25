@@ -53,9 +53,10 @@ export async function evaluateLearningEvent(input: EvaluationInput): Promise<Lea
     body: JSON.stringify({
       model: evaluationModel(),
       instructions:
-        isWriting
+        (isWriting
           ? "You are an exceptional English writing teacher for a school-age child. Return only valid JSON matching the requested shape. Use the provided student_context (CEFR level, US grade equivalent, skill states, recent observations) to calibrate the rigor of your feedback and the difficulty of the suggested next task. Give specific Korean feedback on structure, logic, sentence quality, grammar, vocabulary, expression, and coherence. Provide sentence-level corrections grounded in what the child actually wrote. If this is a revision, compare it with the previous draft and explain exactly what improved and what still needs work. The suggested nextTask must build on the student's current skill states and observed gaps, not generic prompts."
-          : "You are a warm but rigorous English tutor for a school-age child. Return only valid JSON matching the requested shape. Use the provided student_context (CEFR level, US grade equivalent, skill states, recent observations) to calibrate the next task and feedback. Keep Korean parent notes concise and child feedback encouraging but specific. The suggested nextTask must build on the student's current skill states and observed gaps, not generic prompts.",
+          : "You are a warm but rigorous English tutor for a school-age child. Return only valid JSON matching the requested shape. Use the provided student_context (CEFR level, US grade equivalent, skill states, recent observations) to calibrate the next task and feedback. Keep Korean parent notes concise and child feedback encouraging but specific. The suggested nextTask must build on the student's current skill states and observed gaps, not generic prompts.") +
+        " SCORING RULE: Calibrate scores so that an on-level, age-appropriate answer scores around 70/100. Reserve 80+ for clearly strong answers (well-structured, accurate, with elaborated reasoning), and 60- for answers that miss the task or have many basic errors. Individual rubric metrics should also average close to the overall score (within ±5 of it).",
       input: [
         {
           role: "user",
@@ -257,7 +258,7 @@ async function evaluateSpeakingTranscript(input: SpeakingEvaluationInput): Promi
     body: JSON.stringify({
       model: evaluationModel(),
       instructions:
-        "You are an English speaking coach for a child. Return only valid JSON. Evaluate kindly but rigorously. Provide Korean feedback for parent/child. Reference sentences must be improved versions of what the child actually tried to say, anchored to the given topic and transcript. Preserve the child's intended meaning, do not introduce unrelated content, and do not treat reference sentences as standalone repeat-after-me tests. The child will use them to re-record the full answer.",
+        "You are an English speaking coach for a child. Return only valid JSON. Evaluate kindly but rigorously. Provide Korean feedback for parent/child. Reference sentences must be improved versions of what the child actually tried to say, anchored to the given topic and transcript. Preserve the child's intended meaning, do not introduce unrelated content, and do not treat reference sentences as standalone repeat-after-me tests. The child will use them to re-record the full answer. SCORING RULE: Calibrate so an on-level, age-appropriate spoken answer scores around 70/100. Reserve 80+ for clearly strong takes (fluent, accurate, with developed reasoning); 60- for answers that miss the topic or have many basic errors. Individual rubric metrics should also average close to the overall score (within ±5).",
       input: [
         {
           role: "user",
@@ -333,7 +334,7 @@ function normalizeSpeakingEvaluation(
 ): SpeakingAttemptResponse {
   const now = new Date();
   const date = now.toISOString().slice(0, 10);
-  const score = Number(parsed.score ?? 68);
+  const score = Number(parsed.score ?? 70);
   const referenceSentences = normalizeReferenceSentences(parsed.referenceSentences, input);
   const memoryClaims = Array.isArray(parsed.memoryNotes) ? parsed.memoryNotes : ["오늘 녹음 시도와 교정 포인트를 저장했습니다."];
 
@@ -380,7 +381,9 @@ function normalizeSpeakingEvaluation(
 }
 
 function fallbackSpeakingEvaluation(input: SpeakingEvaluationInput): SpeakingAttemptResponse {
-  const base = input.previousScore ? Math.min(95, input.previousScore + 4) : 64;
+  // Center fallback scores on 70 (the new average baseline). Revisions move up a
+  // little; first attempts sit right at the mean.
+  const base = input.previousScore ? Math.min(95, Math.max(60, input.previousScore + 4)) : 70;
   return normalizeSpeakingEvaluation(
     {
       score: base,
@@ -440,11 +443,12 @@ function fallbackTranscript(topic: string) {
 }
 
 function defaultSpeakingMetrics(score: number) {
+  // Centered around the overall score (average ≈ score).
   return [
-    { label: "Fluency", score: Math.max(0, score - 5) },
-    { label: "Pronunciation", score: score },
-    { label: "Response length", score: Math.max(0, score - 8) },
-    { label: "Accuracy", score: Math.max(0, score - 10) }
+    { label: "Fluency", score: clamp(score - 2) },
+    { label: "Pronunciation", score: clamp(score + 1) },
+    { label: "Response length", score: clamp(score - 1) },
+    { label: "Accuracy", score: clamp(score + 2) }
   ];
 }
 
@@ -606,7 +610,7 @@ function isReferenceOnTopic(sentence: string, context: Pick<SpeakingEvaluationIn
 function normalizeEvaluation(parsed: any, input: EvaluationInput): LearningEventResponse {
   const today = new Date().toISOString();
   const fallbackTask = demoStudents[0].todayTask;
-  const score = Number(parsed.evaluation?.overallScore ?? (input.mode === "writing" ? 68 : 70));
+  const score = Number(parsed.evaluation?.overallScore ?? 70);
   const writingFeedback =
     input.mode === "writing" ? normalizeWritingFeedback(parsed.writingFeedback, input.answer, score) : undefined;
   const revisionComparison =
@@ -661,7 +665,7 @@ function normalizeEvaluation(parsed: any, input: EvaluationInput): LearningEvent
 function fallbackEvaluation(input: EvaluationInput): LearningEventResponse {
   const today = new Date().toISOString();
   const fallbackStudent = demoStudents[0];
-  const score = input.mode === "writing" ? 68 : 72;
+  const score = 70;
   const revisionScore = input.isRevision ? Math.max(score, Math.min(95, Number(input.previousScore ?? score) + 6)) : score;
 
   return {
@@ -974,20 +978,26 @@ function fallbackDevelopmentSummary(input: StudentDevelopmentInput): string {
 }
 
 function defaultMetrics(mode: "speaking" | "writing", score: number) {
+  // Centered around the overall score so the average across metrics matches it.
+  // Spread is ±3 for typical performances, keeping metrics balanced near 70.
   if (mode === "writing") {
     return [
-      { label: "Structure", score: Math.max(0, score - 2) },
-      { label: "Logic", score: Math.max(0, score - 4) },
-      { label: "Sentence craft", score },
-      { label: "Grammar", score: Math.max(0, score - 8) },
-      { label: "Expression", score: Math.min(100, score + 4) }
+      { label: "Structure", score: clamp(score - 2) },
+      { label: "Logic", score: clamp(score - 1) },
+      { label: "Sentence craft", score: clamp(score + 2) },
+      { label: "Grammar", score: clamp(score - 3) },
+      { label: "Expression", score: clamp(score + 4) }
     ];
   }
 
   return [
-    { label: "Fluency", score: Math.max(0, score - 6) },
-    { label: "Response length", score },
-    { label: "Interaction", score: Math.min(100, score + 5) },
-    { label: "Accuracy", score: Math.max(0, score - 10) }
+    { label: "Fluency", score: clamp(score - 3) },
+    { label: "Response length", score: clamp(score + 1) },
+    { label: "Interaction", score: clamp(score + 4) },
+    { label: "Accuracy", score: clamp(score - 2) }
   ];
+}
+
+function clamp(value: number) {
+  return Math.max(0, Math.min(100, Math.round(value)));
 }

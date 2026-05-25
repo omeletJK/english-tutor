@@ -1060,9 +1060,7 @@ select:focus {
 .writing-shell .writing-review,
 .writing-shell .rewrite-note,
 .writing-shell .idea-strip {
-  max-width: 880px;
-  margin-left: auto;
-  margin-right: auto;
+  width: 100%;
 }
 
 .idea-strip {
@@ -1360,13 +1358,13 @@ select:focus {
 
 .writing-practice-list {
   display: grid;
-  gap: 10px;
+  gap: 14px;
 }
 
 .writing-practice-list label {
   display: grid;
-  gap: 6px;
-  padding: 14px 16px;
+  gap: 8px;
+  padding: 18px 20px;
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   background: var(--sand);
@@ -1381,7 +1379,8 @@ select:focus {
 .writing-practice-list label strong {
   font-family: var(--font-display);
   font-weight: 500;
-  font-size: 1rem;
+  font-size: 1.18rem;
+  line-height: 1.5;
   letter-spacing: -0.01em;
   color: var(--ink);
 }
@@ -1389,13 +1388,13 @@ select:focus {
 .writing-practice-list span,
 .writing-practice-list small {
   color: var(--ink-faint);
-  font-size: 0.82rem;
+  font-size: 0.92rem;
   font-weight: 400;
 }
 
 .practice-field {
   position: relative;
-  min-height: 42px;
+  min-height: 60px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: var(--surface);
@@ -1414,13 +1413,17 @@ select:focus {
 .practice-field__input {
   box-sizing: border-box;
   font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
-  font-size: 0.95rem;
+  font-size: 1.15rem;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 1.55;
   letter-spacing: 0;
-  padding: 10px 12px;
+  padding: 16px 18px;
   text-align: left;
   white-space: pre;
+  font-kerning: none;
+  font-variant-ligatures: none;
+  font-feature-settings: "kern" 0, "liga" 0, "clig" 0, "calt" 0;
+  text-rendering: geometricPrecision;
 }
 
 .practice-field__mirror {
@@ -1435,7 +1438,7 @@ select:focus {
   position: relative;
   display: block;
   width: 100%;
-  height: 42px;
+  height: 60px;
   margin: 0;
   border: 0;
   background: transparent;
@@ -3645,18 +3648,18 @@ select:focus {
 
 .kid-score-hero__message h3 {
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: 1.65rem;
   font-weight: 500;
   letter-spacing: -0.02em;
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   color: var(--ink);
 }
 
 .kid-score-hero__message p {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.95rem;
-  line-height: 1.5;
+  font-size: 1.05rem;
+  line-height: 1.6;
 }
 
 .kid-score-delta {
@@ -3765,23 +3768,24 @@ select:focus {
 }
 
 .kid-card {
-  padding: 16px 18px;
+  padding: 20px 24px;
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   background: var(--surface);
   display: grid;
-  gap: 10px;
+  gap: 14px;
 }
 
 .kid-card .tiny-label {
   margin: 0;
+  font-size: 0.82rem;
 }
 
 .kid-card__help {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.88rem;
-  line-height: 1.5;
+  font-size: 1.02rem;
+  line-height: 1.6;
 }
 
 .kid-card ul,
@@ -3790,50 +3794,50 @@ select:focus {
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 8px;
+  gap: 10px;
   counter-reset: kid-step;
 }
 
 .kid-card ol li {
   counter-increment: kid-step;
   position: relative;
-  padding: 10px 12px 10px 36px;
+  padding: 14px 16px 14px 44px;
   border-radius: var(--r-sm);
   background: var(--sand);
   color: var(--ink);
-  font-size: 0.92rem;
-  line-height: 1.5;
+  font-size: 1.05rem;
+  line-height: 1.6;
 }
 
 .kid-card ol li::before {
   content: counter(kid-step);
   position: absolute;
-  left: 10px;
+  left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: var(--ink);
   color: var(--bg);
   display: grid;
   place-items: center;
   font-family: var(--font-body);
-  font-size: 0.74rem;
+  font-size: 0.82rem;
   font-weight: 600;
 }
 
 .kid-card ul li {
   display: grid;
-  gap: 4px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 14px 16px;
   border-radius: var(--r-sm);
   background: var(--sand);
 }
 
 .kid-card ul li strong {
   font-family: var(--font-display);
-  font-size: 0.98rem;
+  font-size: 1.12rem;
   font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--ink);
@@ -3842,8 +3846,8 @@ select:focus {
 .kid-card ul li p {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.9rem;
-  line-height: 1.5;
+  font-size: 1rem;
+  line-height: 1.6;
 }
 
 .kid-improved {
@@ -3939,9 +3943,9 @@ select:focus {
 }
 
 .kid-retry__copy h3 {
-  margin: 0 0 4px;
+  margin: 0 0 6px;
   font-family: var(--font-display);
-  font-size: 1.2rem;
+  font-size: 1.32rem;
   font-weight: 500;
   color: var(--bg);
   letter-spacing: -0.01em;
@@ -3950,8 +3954,8 @@ select:focus {
 .kid-retry__copy p {
   margin: 0;
   color: rgba(251, 247, 240, 0.78);
-  font-size: 0.92rem;
-  line-height: 1.5;
+  font-size: 1.02rem;
+  line-height: 1.6;
 }
 
 .kid-retry__button {
@@ -4026,15 +4030,15 @@ select:focus {
 }
 
 .kid-teacher-note > p {
-  margin-top: 12px;
-  padding: 14px 16px;
+  margin-top: 14px;
+  padding: 18px 22px;
   border-radius: var(--r-sm);
   background: var(--surface);
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 1.0625rem;
+  font-size: 1.18rem;
   font-weight: 400;
-  line-height: 1.55;
+  line-height: 1.65;
   letter-spacing: -0.01em;
 }
 

@@ -3,7 +3,7 @@ import { ensureDefaultStudent } from "@/lib/dashboard";
 import { demoStudents } from "@/lib/demo-data";
 import { evaluateLearningEvent } from "@/lib/openai";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { generateAdaptiveTask, setCachedTask, type StudentContext } from "@/lib/task-generator";
+import { clearCachedTask, generateAdaptiveTask, setCachedTask, type StudentContext } from "@/lib/task-generator";
 import type { LearningEventRequest, Observation, SkillState, Student } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -35,10 +35,13 @@ export async function POST(request: Request) {
   });
 
   if (!supabase) {
+    // Drop today's cached task so a fresh prompt is generated for the same day.
+    const today = new Date().toISOString().slice(0, 10);
+    clearCachedTask(student.id, body.mode, today);
     const demoNextTask = await generateAdaptiveTask({
       mode: body.mode,
       context: mergeSkillStatesIntoContext(priorContext, evaluation.skillStates),
-      date: tomorrowDate()
+      date: today
     });
     return Response.json({ ...evaluation, nextTask: demoNextTask });
   }
@@ -109,19 +112,21 @@ export async function POST(request: Request) {
     .eq("student_id", student.id);
 
   const updatedContext = await loadStudentContext(student);
-  const tomorrow = tomorrowDate();
+  const today = new Date().toISOString().slice(0, 10);
 
+  // Force a brand-new prompt for the same date — bypass any stale cache.
+  clearCachedTask(student.id, body.mode, today);
   const nextTask = await generateAdaptiveTask({
     mode: body.mode,
     context: updatedContext,
-    date: tomorrow
+    date: today
   });
 
   const { data: insertedNext } = await supabase
     .from("daily_tasks")
     .insert({
       student_id: student.id,
-      task_date: tomorrow,
+      task_date: today,
       mode: nextTask.mode,
       prompt: nextTask.prompt,
       target_skills: nextTask.targetSkills,
@@ -145,18 +150,12 @@ export async function POST(request: Request) {
       }
     : nextTask;
 
-  setCachedTask(student.id, body.mode, persistedNextTask, tomorrow);
+  setCachedTask(student.id, body.mode, persistedNextTask, today);
 
   return Response.json({
     ...evaluation,
     nextTask: persistedNextTask
   });
-}
-
-function tomorrowDate() {
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
-  return date.toISOString().slice(0, 10);
 }
 
 async function loadStudentContext(student: Student): Promise<StudentContext> {

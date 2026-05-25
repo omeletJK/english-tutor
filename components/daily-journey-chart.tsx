@@ -151,11 +151,10 @@ export function DailyJourneyChart({
               const isHovered = hover?.date === day.date;
 
               function showTooltip(event: React.MouseEvent<SVGRectElement>) {
-                const rect = event.currentTarget.getBoundingClientRect();
                 setHover({
                   date: day.date,
-                  anchorTop: rect.top,
-                  anchorLeft: rect.left + rect.width / 2,
+                  anchorTop: event.clientY,
+                  anchorLeft: event.clientX,
                   scores: day.scores,
                   final: day.final,
                   best: day.best
@@ -270,7 +269,7 @@ function JourneyTooltip({ hover }: { hover: HoverState }) {
   return (
     <div
       className="daily-journey-tooltip"
-      style={{ top: hover.anchorTop - 12, left: hover.anchorLeft }}
+      style={{ top: hover.anchorTop - 16, left: hover.anchorLeft }}
       role="tooltip"
     >
       <div className="daily-journey-tooltip__head">

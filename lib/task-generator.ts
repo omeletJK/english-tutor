@@ -30,6 +30,10 @@ export function setCachedTask(studentId: string, mode: TaskMode, task: DailyTask
   taskCache.set(cacheKey(studentId, date, mode), task);
 }
 
+export function clearCachedTask(studentId: string, mode: TaskMode, date = todayKey()) {
+  taskCache.delete(cacheKey(studentId, date, mode));
+}
+
 export async function generateAdaptiveTask(input: GenerateInput): Promise<DailyTask> {
   const date = input.date ?? todayKey();
   const cached = getCachedTask(input.context.student.id, input.mode, date);
@@ -212,11 +216,19 @@ export function fallbackAdaptiveTask(input: GenerateInput): DailyTask {
   const weakest = pickWeakestSkill(skillStates);
   const interest = pickInterestTopic(recentObservations);
   const grade = parseGradeNumber(student.usGradeLevel);
+  const date = input.date ?? todayKey();
 
-  const prompt = buildFallbackPrompt({ mode, grade, weakest, interest });
+  const prompt = buildFallbackPrompt({
+    mode,
+    grade,
+    weakest,
+    interest,
+    date,
+    studentId: student.id
+  });
 
   return {
-    id: `task-fallback-${mode}-${student.id}-${input.date ?? todayKey()}`,
+    id: `task-fallback-${mode}-${student.id}-${date}`,
     mode,
     prompt,
     targetSkills: weakest ? [weakest.skill] : ["sentence_expansion"],
@@ -243,25 +255,41 @@ function parseGradeNumber(label: string): number {
   return match ? Number(match[1]) : 5;
 }
 
-function buildFallbackPrompt(args: { mode: TaskMode; grade: number; weakest: SkillState | null; interest: string | null }) {
-  const { mode, grade, interest } = args;
+function buildFallbackPrompt(args: { mode: TaskMode; grade: number; weakest: SkillState | null; interest: string | null; date: string; studentId: string }) {
+  const { mode, grade, interest, date, studentId } = args;
   const topicSeed = interest ? extractTopicSeed(interest) : null;
 
   const speakingByLevel: Record<"low" | "mid" | "high", string[]> = {
     low: [
       "What is one thing you enjoyed doing today, and why did you enjoy it?",
       "If you could spend an afternoon doing anything, what would you choose, and why?",
-      "Tell me about a person who makes you happy and one reason why."
+      "Tell me about a person who makes you happy and one reason why.",
+      "What food would you eat every day if you could? What do you like about it?",
+      "Describe your favorite animal. What is it like, and what do you find interesting about it?",
+      "If you had to give your bedroom a new name, what would you call it and why?",
+      "Tell me about a small adventure you had recently — even something tiny.",
+      "What is something you can do now that you couldn't do a year ago?"
     ],
     mid: [
       "What is one skill you want to get better at this year, and how could you practice it?",
       "Would you rather live by the ocean or in the mountains? Pick one and explain your thinking.",
-      "Describe a recent moment when you felt proud of yourself. What happened, and why did it matter to you?"
+      "Describe a recent moment when you felt proud of yourself. What happened, and why did it matter to you?",
+      "If you could redesign your bedroom or study space, what would you change or add, and how would it help you feel better or study better?",
+      "Think about a friend you have known for a long time. What do you appreciate about that person?",
+      "If you could try a job for one day to see if you'd like it, which job would you pick and why?",
+      "Tell me about a book, movie, or song that stuck with you. What did it make you think about?",
+      "What does a perfect Saturday look like for you? Walk me through it.",
+      "If you could invent one rule for your family, what would it be and why?"
     ],
     high: [
       "Do you think students learn more from making mistakes or from getting things right the first time? Take a side and explain.",
       "If you could change one rule at your school, what would it be and how would things be different?",
-      "What is something many people believe that you disagree with? Explain why."
+      "What is something many people believe that you disagree with? Explain why.",
+      "Is it more important to be kind or to be honest? Explain how you decide when they conflict.",
+      "Should phones be allowed in the classroom? Take a clear position with two reasons.",
+      "Tell me about a time you changed your mind about something. What caused the change?",
+      "If you could meet any person from history for thirty minutes, who would it be and what would you ask?",
+      "What is a skill you think every middle-schooler should learn, and why?"
     ]
   };
 
@@ -269,25 +297,51 @@ function buildFallbackPrompt(args: { mode: TaskMode; grade: number; weakest: Ski
     low: [
       "Think of a place that feels comfortable to you. Describe what it looks like and why it feels that way.",
       "Write about a small moment from this week that you want to remember. Explain what happened and how you felt.",
-      "Describe a person you trust. What are they like, and why do you trust them?"
+      "Describe a person you trust. What are they like, and why do you trust them?",
+      "Write about your favorite toy or object. Where did you get it, and why does it matter to you?",
+      "Describe your favorite season. What does it look like, feel like, and smell like?",
+      "Tell the story of a meal you really enjoyed. Who were you with, and what made it special?",
+      "Write about a pet you have or a pet you wish you had. Describe its personality and a memory with it.",
+      "What is one thing in nature you find amazing? Describe it and explain what you like about it."
     ],
     mid: [
       "Think of something you used to find difficult but no longer do. Explain what changed for you.",
       "Describe a tradition or routine in your family that means something to you. What is it, and why does it matter?",
-      "Write about a choice you made recently that you are still thinking about. What was the choice, and why does it stay with you?"
+      "Write about a choice you made recently that you are still thinking about. What was the choice, and why does it stay with you?",
+      "Write one paragraph about whether students should be allowed to use phones during lunch. Include a topic sentence, two reasons, and a closing sentence.",
+      "Pick a hobby you enjoy and write a paragraph that could convince a friend to try it. Use at least two specific reasons.",
+      "Write about a teacher (real or imagined) who taught you something that didn't fit on a test.",
+      "Describe a problem in your neighborhood and a small action a kid your age could take to help.",
+      "Write about a place you visited that surprised you. What did you expect, and what was different?"
     ],
     high: [
       "Some people say technology is making us less patient. Do you agree? Use examples from your own life.",
       "Imagine you could redesign one part of school life. What would you change, and what would be better one year later?",
-      "Write about a belief you used to hold but no longer do. What changed your mind?"
+      "Write about a belief you used to hold but no longer do. What changed your mind?",
+      "Should middle schools require students to learn a second language? Take a position and defend it with at least two reasons.",
+      "Write a short opinion paragraph: 'The most important thing a school can teach is ___.' Defend your choice.",
+      "Describe a problem in your community that doesn't get enough attention. Why does it matter, and what could be done?",
+      "Argue for or against giving every student a daily quiet hour with no screens. Use evidence from your own experience.",
+      "Write about a time when doing the easy thing would have been wrong. What did you decide, and what did you learn?"
     ]
   };
 
   const band = grade <= 3 ? "low" : grade <= 6 ? "mid" : "high";
   const pool = mode === "speaking" ? speakingByLevel[band] : writingByLevel[band];
-  const seedHash = (topicSeed ?? `${mode}-${args.weakest?.skill ?? ""}`).length;
-  const pick = pool[seedHash % pool.length];
-  return pick;
+
+  // Stable hash that rotates each day AND differs between students and modes,
+  // so the same student rarely sees the same prompt within a week.
+  const seedString = `${studentId}-${mode}-${date}-${topicSeed ?? args.weakest?.skill ?? "general"}`;
+  const seedHash = hashString(seedString);
+  return pool[seedHash % pool.length];
+}
+
+function hashString(input: string): number {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = ((hash << 5) - hash + input.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
 }
 
 function extractTopicSeed(claim: string): string | null {

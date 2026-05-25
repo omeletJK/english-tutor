@@ -62,8 +62,8 @@ export function SessionDetailModal(props: ModalProps) {
           background: "var(--surface)",
           border: "1px solid var(--line)",
           borderRadius: 14,
-          width: "min(820px, 100%)",
-          maxHeight: "min(90vh, 900px)",
+          width: "min(1280px, 96vw)",
+          maxHeight: "min(92vh, 1000px)",
           display: "flex",
           flexDirection: "column",
           boxShadow:
