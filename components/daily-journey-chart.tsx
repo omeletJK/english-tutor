@@ -129,14 +129,8 @@ export function DailyJourneyChart({
               const finalY = yForScore(day.final);
               const barX = cx - BAR_WIDTH / 2;
               const barHeight = Math.max(baseY - finalY, 2);
-              const innerLeft = barX + 6;
-              const innerRight = barX + BAR_WIDTH - 6;
-              const innerWidth = innerRight - innerLeft;
-
-              const dotXFor = (idx: number) =>
-                day.scores.length === 1
-                  ? cx
-                  : innerLeft + (innerWidth * idx) / (day.scores.length - 1);
+              const tickX1 = barX + 2;
+              const tickX2 = barX + BAR_WIDTH - 2;
 
               return (
                 <g key={day.date}>
@@ -152,37 +146,25 @@ export function DailyJourneyChart({
                     <title>{`${formatTooltipDate(day.date)} · 최종 ${day.final}점 · ${day.scores.length}회 시도`}</title>
                   </rect>
 
-                  {day.scores.length > 1 ? (
-                    <polyline
-                      points={day.scores
-                        .map((s, idx) => `${dotXFor(idx)},${yForScore(s)}`)
-                        .join(" ")}
-                      fill="none"
-                      stroke="var(--accent)"
-                      strokeWidth={1.5}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      opacity={0.85}
-                    />
-                  ) : null}
-
-                  {day.scores.map((s, idx) => {
-                    const isFinal = idx === day.scores.length - 1;
-                    const isBest = s === day.best && !isFinal;
-                    return (
-                      <circle
-                        key={idx}
-                        cx={dotXFor(idx)}
-                        cy={yForScore(s)}
-                        r={isFinal ? 4 : 2.5}
-                        fill={isFinal ? "var(--accent)" : "var(--surface)"}
-                        stroke={isBest ? "var(--moss)" : "var(--accent)"}
-                        strokeWidth={1.5}
-                      >
-                        <title>{`Try ${idx + 1}: ${s}점${isBest ? " (최고)" : ""}${isFinal ? " (마지막)" : ""}`}</title>
-                      </circle>
-                    );
-                  })}
+                  {day.scores.length > 1
+                    ? day.scores.slice(0, -1).map((s, idx) => {
+                        const isBest = s === day.best;
+                        return (
+                          <line
+                            key={`try-${idx}`}
+                            x1={tickX1}
+                            x2={tickX2}
+                            y1={yForScore(s)}
+                            y2={yForScore(s)}
+                            stroke={isBest ? "var(--moss)" : "var(--accent)"}
+                            strokeWidth={1.5}
+                            opacity={isBest ? 0.9 : 0.55}
+                          >
+                            <title>{`Try ${idx + 1}: ${s}점${isBest ? " (최고)" : ""}`}</title>
+                          </line>
+                        );
+                      })
+                    : null}
 
                   <text
                     x={cx}

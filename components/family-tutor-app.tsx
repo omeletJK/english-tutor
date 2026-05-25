@@ -519,7 +519,7 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
                           ? "Writing 일자별 점수 + 그날의 도전 흐름"
                           : "Speaking 일자별 점수 + 그날의 도전 흐름"
                       }
-                      caption="막대 높이는 그날의 마지막 점수. 점과 선은 그날 1차·2차·3차 시도의 흐름이에요."
+                      caption="막대 높이는 그날의 마지막 점수. 막대 안의 가로선은 그날 시도했던 점수들이에요. (녹색은 최고 점수)"
                     />
                   </section>
                   <section className="quest-board">
