@@ -24,17 +24,24 @@ export type SessionRow<TAttempt> = {
   delta: number;
 };
 
-type WritingAttempt = LessonHistoryItem & { snapshot?: EvaluationSnapshot };
+export type SpeakingSessionRow = SessionRow<SpeakingAttempt>;
+export type WritingSessionRow = SessionRow<WritingAttempt>;
+
+export type WritingAttempt = LessonHistoryItem & { snapshot?: EvaluationSnapshot };
 
 export function SpeakingHistorySection({
   attempts,
-  emptyMessage = "아직 Speaking 기록이 없어요."
+  emptyMessage = "아직 Speaking 기록이 없어요.",
+  onSelectSession
 }: {
   attempts: SpeakingAttempt[];
   emptyMessage?: string;
+  onSelectSession?: (session: SpeakingSessionRow) => void;
 }) {
   const sessions = useMemo(() => groupSpeakingByDate(attempts), [attempts]);
-  const [openId, setOpenId] = useState<string | null>(sessions[0]?.id ?? null);
+  const [openId, setOpenId] = useState<string | null>(
+    onSelectSession ? null : sessions[0]?.id ?? null
+  );
 
   if (sessions.length === 0) {
     return (
@@ -50,17 +57,23 @@ export function SpeakingHistorySection({
         <SessionRowCard
           key={session.id}
           session={session}
-          isOpen={openId === session.id}
-          onToggle={() => setOpenId(openId === session.id ? null : session.id)}
+          isOpen={onSelectSession ? false : openId === session.id}
+          onToggle={
+            onSelectSession
+              ? () => onSelectSession(session)
+              : () => setOpenId(openId === session.id ? null : session.id)
+          }
+          asTrigger={Boolean(onSelectSession)}
         >
-          {session.attempts.map((attempt, index) => (
-            <SpeakingAttemptCard
-              attempt={attempt}
-              attemptIndex={index + 1}
-              isBest={attempt.score === session.bestScore}
-              key={attempt.id}
-            />
-          ))}
+          {!onSelectSession &&
+            session.attempts.map((attempt, index) => (
+              <SpeakingAttemptCard
+                attempt={attempt}
+                attemptIndex={index + 1}
+                isBest={attempt.score === session.bestScore}
+                key={attempt.id}
+              />
+            ))}
         </SessionRowCard>
       ))}
     </section>
@@ -70,17 +83,21 @@ export function SpeakingHistorySection({
 export function WritingHistorySection({
   lessonHistory,
   evaluationSnapshots,
-  emptyMessage = "아직 Writing 기록이 없어요."
+  emptyMessage = "아직 Writing 기록이 없어요.",
+  onSelectSession
 }: {
   lessonHistory: LessonHistoryItem[];
   evaluationSnapshots: EvaluationSnapshot[];
   emptyMessage?: string;
+  onSelectSession?: (session: WritingSessionRow) => void;
 }) {
   const sessions = useMemo(
     () => groupWritingByDate(lessonHistory, evaluationSnapshots),
     [lessonHistory, evaluationSnapshots]
   );
-  const [openId, setOpenId] = useState<string | null>(sessions[0]?.id ?? null);
+  const [openId, setOpenId] = useState<string | null>(
+    onSelectSession ? null : sessions[0]?.id ?? null
+  );
 
   if (sessions.length === 0) {
     return (
@@ -96,18 +113,24 @@ export function WritingHistorySection({
         <SessionRowCard
           key={session.id}
           session={session}
-          isOpen={openId === session.id}
-          onToggle={() => setOpenId(openId === session.id ? null : session.id)}
+          isOpen={onSelectSession ? false : openId === session.id}
+          onToggle={
+            onSelectSession
+              ? () => onSelectSession(session)
+              : () => setOpenId(openId === session.id ? null : session.id)
+          }
+          asTrigger={Boolean(onSelectSession)}
         >
-          {session.attempts.map((attempt, index) => (
-            <WritingAttemptCard
-              attempt={attempt}
-              attemptIndex={index + 1}
-              isBest={attempt.score === session.bestScore}
-              prompt={session.topic}
-              key={attempt.id}
-            />
-          ))}
+          {!onSelectSession &&
+            session.attempts.map((attempt, index) => (
+              <WritingAttemptCard
+                attempt={attempt}
+                attemptIndex={index + 1}
+                isBest={attempt.score === session.bestScore}
+                prompt={session.topic}
+                key={attempt.id}
+              />
+            ))}
         </SessionRowCard>
       ))}
     </section>
@@ -120,12 +143,14 @@ function SessionRowCard<TAttempt>({
   session,
   isOpen,
   onToggle,
-  children
+  children,
+  asTrigger = false
 }: {
   session: SessionRow<TAttempt>;
   isOpen: boolean;
   onToggle: () => void;
   children: React.ReactNode;
+  asTrigger?: boolean;
 }) {
   const tries = session.attempts.length;
   const showArc = tries > 1;
@@ -239,7 +264,7 @@ function SessionRowCard<TAttempt>({
               transform: isOpen ? "rotate(180deg)" : "rotate(0deg)"
             }}
           >
-            ▾
+            {asTrigger ? "›" : "▾"}
           </span>
         </div>
       </button>
@@ -248,7 +273,7 @@ function SessionRowCard<TAttempt>({
   );
 }
 
-function SpeakingAttemptCard({
+export function SpeakingAttemptCard({
   attempt,
   attemptIndex,
   isBest
@@ -306,7 +331,7 @@ function SpeakingAttemptCard({
   );
 }
 
-function WritingAttemptCard({
+export function WritingAttemptCard({
   attempt,
   attemptIndex,
   isBest,

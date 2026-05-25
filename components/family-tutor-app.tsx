@@ -3,11 +3,14 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { AvatarButton } from "@/components/avatar";
 import { Envelope, Microphone, Notebook, Star } from "@/components/illustrations";
-import { ScoreHistory } from "@/components/score-history";
 import {
   SpeakingHistorySection,
-  WritingHistorySection
+  WritingHistorySection,
+  type SpeakingSessionRow,
+  type WritingSessionRow
 } from "@/components/session-history";
+import { SessionDetailModal } from "@/components/session-detail-modal";
+import { ModeScoreSparkline } from "@/components/mode-score-sparkline";
 import type {
   DashboardData,
   EvaluationSnapshot,
@@ -25,7 +28,11 @@ type FamilyTutorAppProps = {
   initialData: DashboardData;
 };
 
-type AppTab = "play" | "progress" | "reward";
+type AppTab = "writing" | "speaking" | "reward";
+
+type SelectedSession =
+  | { kind: "speaking"; session: SpeakingSessionRow }
+  | { kind: "writing"; session: WritingSessionRow };
 
 type WritingScoreTrailItem = {
   id: string;
@@ -44,8 +51,10 @@ const writingIdeas = [
 export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
   const [students, setStudents] = useState<StudentDashboard[]>(initialData.students);
   const activeStudentId = initialData.activeStudentId;
-  const [activeTab, setActiveTab] = useState<AppTab>("play");
-  const [questMode, setQuestMode] = useState<TaskMode>("speaking");
+  const [activeTab, setActiveTab] = useState<AppTab>("speaking");
+  const questMode: TaskMode = activeTab === "writing" ? "writing" : "speaking";
+  const setQuestMode = (mode: TaskMode) => setActiveTab(mode);
+  const [selectedSession, setSelectedSession] = useState<SelectedSession | null>(null);
   const [writingDraft, setWritingDraft] = useState("");
   const [brainstorming, setBrainstorming] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<LearningEventResponse | null>(null);
@@ -370,8 +379,8 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
           <header className="stage-topbar">
             <nav className="game-tabs" aria-label="Main tabs">
               {[
-                ["play", "Play"],
-                ["progress", "Progress"],
+                ["writing", "Writing"],
+                ["speaking", "Speaking"],
                 ["reward", "Reward"]
               ].map(([key, label]) => (
                 <button
@@ -389,39 +398,88 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
             </button>
           </header>
 
-          {activeTab === "play" ? (
-            <PlayView
-              activeStudent={activeStudent}
-              completeQuest={completeQuest}
-              feedback={feedback}
-              isSubmitting={isSubmitting}
-              questMode={questMode}
-              recordingError={recordingError}
-              recordingState={recordingState}
-              heardReference={heardReference}
-              onRetryWriting={onRetryWriting}
-              onRetrySpeaking={onRetrySpeaking}
-              retryMode={retryMode}
-              setQuestMode={setQuestMode}
-              setWritingPracticeInput={setWritingPracticeInput}
-              setWritingDraft={setWritingDraft}
-              speakingFeedback={speakingFeedback}
-              speakReference={speakReference}
-              startRecording={startRecording}
-              startBrainstorming={startBrainstorming}
-              stopRecording={stopRecording}
-              writingDraft={writingDraft}
-              writingPracticeInputs={writingPracticeInputs}
-              writingScoreTrail={writingScoreTrail}
-              brainstorming={brainstorming}
-            />
-          ) : null}
+          {activeTab === "writing" || activeTab === "speaking" ? (
+            <div className="mode-tab-stack" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              <ModeScoreSparkline
+                snapshots={activeStudent.evaluationSnapshots}
+                mode={activeTab}
+                label={activeTab === "writing" ? "Writing 점수 흐름" : "Speaking 점수 흐름"}
+              />
 
-          {activeTab === "progress" ? <ProgressView activeStudent={activeStudent} /> : null}
+              <PlayView
+                activeStudent={activeStudent}
+                completeQuest={completeQuest}
+                feedback={feedback}
+                isSubmitting={isSubmitting}
+                questMode={questMode}
+                recordingError={recordingError}
+                recordingState={recordingState}
+                heardReference={heardReference}
+                onRetryWriting={onRetryWriting}
+                onRetrySpeaking={onRetrySpeaking}
+                retryMode={retryMode}
+                setQuestMode={setQuestMode}
+                setWritingPracticeInput={setWritingPracticeInput}
+                setWritingDraft={setWritingDraft}
+                speakingFeedback={speakingFeedback}
+                speakReference={speakReference}
+                startRecording={startRecording}
+                startBrainstorming={startBrainstorming}
+                stopRecording={stopRecording}
+                writingDraft={writingDraft}
+                writingPracticeInputs={writingPracticeInputs}
+                writingScoreTrail={writingScoreTrail}
+                brainstorming={brainstorming}
+              />
+
+              <section className="quest-board">
+                <div className="quest-title-row">
+                  <div>
+                    <p className="tiny-label">My History</p>
+                    <h2>{activeTab === "writing" ? "내가 쓴 것들" : "내가 말한 것들"}</h2>
+                  </div>
+                </div>
+                {activeTab === "speaking" ? (
+                  <SpeakingHistorySection
+                    attempts={activeStudent.speakingAttempts}
+                    emptyMessage="아직 말한 기록이 없어요. 위에서 오늘의 문제로 도전해 보세요."
+                    onSelectSession={(session) =>
+                      setSelectedSession({ kind: "speaking", session })
+                    }
+                  />
+                ) : (
+                  <WritingHistorySection
+                    lessonHistory={activeStudent.lessonHistory}
+                    evaluationSnapshots={activeStudent.evaluationSnapshots}
+                    emptyMessage="아직 쓴 기록이 없어요. 위에서 오늘의 문제로 도전해 보세요."
+                    onSelectSession={(session) =>
+                      setSelectedSession({ kind: "writing", session })
+                    }
+                  />
+                )}
+              </section>
+            </div>
+          ) : null}
 
           {activeTab === "reward" ? <RewardView activeStudent={activeStudent} /> : null}
         </section>
       </div>
+
+      {selectedSession ? (
+        selectedSession.kind === "speaking" ? (
+          <SessionDetailModal
+            kind="speaking"
+            session={selectedSession.session}
+            onClose={() => setSelectedSession(null)}
+          />
+        ) : (
+          <SessionDetailModal
+            kind="writing"
+            session={selectedSession.session}
+            onClose={() => setSelectedSession(null)}
+          />
+        )
+      ) : null}
     </main>
   );
 }
@@ -663,8 +721,7 @@ function PlayView({
 
 function WorkspaceHeader({
   activeStudent,
-  questMode,
-  setQuestMode
+  questMode
 }: {
   activeStudent: StudentDashboard;
   questMode: TaskMode;
@@ -681,14 +738,6 @@ function WorkspaceHeader({
       <div className="workspace-stats" aria-label="Current progress">
         <span>{latestScore} score</span>
         <span>{activeStudent.student.usGradeLevel}</span>
-      </div>
-      <div className="quest-mode-picker" aria-label="Quest mode">
-        <button className={questMode === "speaking" ? "selected" : ""} onClick={() => setQuestMode("speaking")} type="button">
-          Speaking
-        </button>
-        <button className={questMode === "writing" ? "selected" : ""} onClick={() => setQuestMode("writing")} type="button">
-          Writing
-        </button>
       </div>
     </section>
   );
@@ -1201,64 +1250,6 @@ function renderPracticeMirror(typed: string, target: string) {
       </span>
     );
   });
-}
-
-function ProgressView({ activeStudent }: { activeStudent: StudentDashboard }) {
-  return (
-    <div className="progress-view-stack" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <section className="quest-board">
-        <div className="quest-title-row">
-          <div>
-            <p className="tiny-label">Progress map</p>
-            <h2>Score climb</h2>
-          </div>
-        </div>
-        <ScoreHistory
-          points={activeStudent.progressPoints}
-          title="점수 변화 히스토리"
-          caption="표에서 정확한 수치를, 그래프에서 변화 흐름을 함께 확인해 보세요."
-        />
-        <div className="skill-cloud">
-          {activeStudent.skillStates.map((skill) => (
-            <div className="skill-token" key={skill.id}>
-              <strong>{skill.skill}</strong>
-              <span>{skill.score}/100</span>
-              <div className="meter">
-                <i style={{ width: `${skill.score}%` }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="quest-board">
-        <div className="quest-title-row">
-          <div>
-            <p className="tiny-label">My History</p>
-            <h2>내가 말한 것들</h2>
-          </div>
-        </div>
-        <SpeakingHistorySection
-          attempts={activeStudent.speakingAttempts}
-          emptyMessage="아직 말한 기록이 없어요. Play 탭에서 Speaking에 도전해 보세요."
-        />
-      </section>
-
-      <section className="quest-board">
-        <div className="quest-title-row">
-          <div>
-            <p className="tiny-label">My History</p>
-            <h2>내가 쓴 것들</h2>
-          </div>
-        </div>
-        <WritingHistorySection
-          lessonHistory={activeStudent.lessonHistory}
-          evaluationSnapshots={activeStudent.evaluationSnapshots}
-          emptyMessage="아직 쓴 기록이 없어요. Play 탭에서 Writing에 도전해 보세요."
-        />
-      </section>
-    </div>
-  );
 }
 
 function RewardView({
