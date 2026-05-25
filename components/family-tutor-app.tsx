@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { AvatarButton } from "@/components/avatar";
-import { Envelope, Microphone, Notebook, Star } from "@/components/illustrations";
+import { Envelope, Microphone, Notebook, RotateCcw, Star } from "@/components/illustrations";
 import {
   SpeakingHistorySection,
   WritingHistorySection,
@@ -743,12 +743,13 @@ function PlayView({
                       Stop recording
                     </button>
                     <button
-                      className="soft-button record-reset"
+                      className="record-reset"
                       onClick={cancelRecording}
                       type="button"
+                      aria-label="다시 시작"
                       title="녹음한 내용을 버리고 처음부터 다시"
                     >
-                      🔁 다시 시작
+                      <RotateCcw size={18} />
                     </button>
                   </div>
                 ) : (
