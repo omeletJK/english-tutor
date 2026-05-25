@@ -710,17 +710,20 @@ function PlayView({
               <div className="message-card prompt-card">
                 <div className="prompt-card-head">
                   <p className="tiny-label">Today · Speaking</p>
-                  <Microphone size={44} />
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <button
+                      className="soft-button prompt-refresh"
+                      type="button"
+                      onClick={() => refreshTask("speaking")}
+                      style={{ marginTop: 0, alignSelf: "auto" }}
+                    >
+                      ↻ 다른 주제 받기
+                    </button>
+                    <Microphone size={44} />
+                  </div>
                 </div>
                 <h2>{activeStudent.speakingTask.prompt}</h2>
                 <p>녹음 버튼을 누르고 영어로 답해 보세요. 답변이 끝나면 전체 내용을 평가하고 더 자연스러운 문장으로 다시 말할 수 있게 도와줍니다.</p>
-                <button
-                  className="soft-button prompt-refresh"
-                  type="button"
-                  onClick={() => refreshTask("speaking")}
-                >
-                  ↻ 다른 주제 받기
-                </button>
               </div>
             </div>
 
@@ -802,17 +805,20 @@ function PlayView({
               <div className="message-card prompt-card">
                 <div className="prompt-card-head">
                   <p className="tiny-label">Today · Writing</p>
-                  <Notebook size={44} />
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <button
+                      className="soft-button prompt-refresh"
+                      type="button"
+                      onClick={() => refreshTask("writing")}
+                      style={{ marginTop: 0, alignSelf: "auto" }}
+                    >
+                      ↻ 다른 주제 받기
+                    </button>
+                    <Notebook size={44} />
+                  </div>
                 </div>
                 <h2>{activeStudent.writingTask.prompt}</h2>
                 <p>먼저 생각을 편하게 쓰고, 평가 후에는 더 좋은 문장으로 다시 작성해 점수를 올려 봅니다.</p>
-                <button
-                  className="soft-button prompt-refresh"
-                  type="button"
-                  onClick={() => refreshTask("writing")}
-                >
-                  ↻ 다른 주제 받기
-                </button>
               </div>
             </div>
             <button className="soft-button" onClick={startBrainstorming} type="button">
