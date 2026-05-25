@@ -10,7 +10,7 @@ import {
   type WritingSessionRow
 } from "@/components/session-history";
 import { SessionDetailModal } from "@/components/session-detail-modal";
-import { ModeScoreSparkline } from "@/components/mode-score-sparkline";
+import { ScoreHistory } from "@/components/score-history";
 import type {
   DashboardData,
   EvaluationSnapshot,
@@ -502,11 +502,16 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
 
               {subTab === "progress" ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                  <ModeScoreSparkline
-                    snapshots={activeStudent.evaluationSnapshots}
-                    mode={activeTab}
-                    label={activeTab === "writing" ? "Writing 점수 흐름" : "Speaking 점수 흐름"}
-                  />
+                  <section className="quest-board">
+                    <ScoreHistory
+                      points={activeStudent.progressPoints.filter((p) =>
+                        activeTab === "writing" ? p.writing > 0 : p.speaking > 0
+                      )}
+                      seriesKeys={[activeTab]}
+                      title={activeTab === "writing" ? "Writing 일자별 최종 점수" : "Speaking 일자별 최종 점수"}
+                      caption="하루에 여러 번 시도해도 막대 하나로 표시됩니다 — 그날의 마지막 점수예요."
+                    />
+                  </section>
                   <section className="quest-board">
                     <div className="quest-title-row">
                       <div>

@@ -7,6 +7,7 @@ type ScoreHistoryProps = {
   points: ProgressPoint[];
   title?: string;
   caption?: string;
+  seriesKeys?: SeriesKey[];
 };
 
 type SeriesKey = "speaking" | "writing" | "confidence";
@@ -26,8 +27,13 @@ const PADDING_Y = { top: 22, bottom: 10 };
 const INNER_HEIGHT = CHART_HEIGHT - PADDING_Y.top - PADDING_Y.bottom;
 const Y_TICKS = [0, 25, 50, 75, 100];
 
-export function ScoreHistory({ points, title = "Score history", caption }: ScoreHistoryProps) {
+export function ScoreHistory({ points, title = "Score history", caption, seriesKeys }: ScoreHistoryProps) {
   const ordered = useMemo(() => [...points].sort(byDate), [points]);
+  const visibleSeries = useMemo(
+    () => (seriesKeys ? SERIES.filter((s) => seriesKeys.includes(s.key)) : SERIES),
+    [seriesKeys]
+  );
+  const showAvg = visibleSeries.length > 1;
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   useDragScroll(scrollerRef);
@@ -63,7 +69,7 @@ export function ScoreHistory({ points, title = "Score history", caption }: Score
           <h3>{title}</h3>
         </div>
         <div className="score-history-legend" role="list">
-          {SERIES.map((series) => (
+          {visibleSeries.map((series) => (
             <span key={series.key} role="listitem">
               <i style={{ background: series.color }} />
               {series.label}
@@ -74,7 +80,7 @@ export function ScoreHistory({ points, title = "Score history", caption }: Score
 
       <div className="score-history-scroller" ref={scrollerRef} aria-label="점수 변화 그래프, 좌우로 드래그해서 과거 데이터를 볼 수 있습니다">
         <div className="score-history-stack" style={{ minWidth: contentWidth }}>
-          {SERIES.map((series) => (
+          {visibleSeries.map((series) => (
             <div className="metric-chart" key={series.key}>
               <div className="metric-chart-tag" style={{ color: series.color, borderColor: series.color }}>
                 <i style={{ background: series.color }} aria-hidden="true" />
@@ -170,32 +176,39 @@ export function ScoreHistory({ points, title = "Score history", caption }: Score
           <thead>
             <tr>
               <th scope="col">날짜</th>
-              {SERIES.map((series) => (
+              {visibleSeries.map((series) => (
                 <th key={series.key} scope="col">
                   <span className="th-swatch" style={{ background: series.color }} aria-hidden="true" />
                   {series.label}
                 </th>
               ))}
-              <th scope="col">평균</th>
+              {showAvg ? <th scope="col">평균</th> : null}
             </tr>
           </thead>
           <tbody>
             {[...ordered].reverse().map((point, reverseIndex) => {
               const index = ordered.length - 1 - reverseIndex;
               const previous = index > 0 ? ordered[index - 1] : null;
-              const avg = Math.round((point.speaking + point.writing + point.confidence) / 3);
+              const avg = showAvg
+                ? Math.round(
+                    visibleSeries.reduce((sum, series) => sum + clampScore(point[series.key]), 0) /
+                      visibleSeries.length
+                  )
+                : 0;
               return (
                 <tr key={point.date}>
                   <th scope="row">{formatRowDate(point.date)}</th>
-                  {SERIES.map((series) => (
+                  {visibleSeries.map((series) => (
                     <td key={series.key}>
                       <span className="score-value">{clampScore(point[series.key])}</span>
                       {previous ? <DeltaBadge delta={point[series.key] - previous[series.key]} /> : null}
                     </td>
                   ))}
-                  <td>
-                    <strong>{avg}</strong>
-                  </td>
+                  {showAvg ? (
+                    <td>
+                      <strong>{avg}</strong>
+                    </td>
+                  ) : null}
                 </tr>
               );
             })}
@@ -207,7 +220,7 @@ export function ScoreHistory({ points, title = "Score history", caption }: Score
 
       {N > 1 ? (
         <div className="score-history-summary">
-          {SERIES.map((series) => {
+          {visibleSeries.map((series) => {
             const diff = latest[series.key] - first[series.key];
             return (
               <div key={series.key} className="score-history-summary-item">
