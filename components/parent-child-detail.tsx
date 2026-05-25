@@ -10,8 +10,11 @@ import type {
 import { DailyJourneyChart } from "@/components/daily-journey-chart";
 import {
   SpeakingHistorySection,
-  WritingHistorySection
+  WritingHistorySection,
+  type SpeakingSessionRow,
+  type WritingSessionRow
 } from "@/components/session-history";
+import { SessionDetailModal } from "@/components/session-detail-modal";
 
 type ParentChildDetailProps = {
   dashboard: DashboardData;
@@ -239,22 +242,46 @@ function OverviewSection({ student }: { student: StudentDashboard }) {
 
 /* ---------- Speaking ---------- */
 function SpeakingSection({ student }: { student: StudentDashboard }) {
+  const [selectedSession, setSelectedSession] = useState<SpeakingSessionRow | null>(null);
+
   return (
-    <SpeakingHistorySection
-      attempts={student.speakingAttempts}
-      emptyMessage="아직 Speaking 세션이 없습니다."
-    />
+    <>
+      <SpeakingHistorySection
+        attempts={student.speakingAttempts}
+        emptyMessage="아직 Speaking 세션이 없습니다."
+        onSelectSession={setSelectedSession}
+      />
+      {selectedSession ? (
+        <SessionDetailModal
+          kind="speaking"
+          session={selectedSession}
+          onClose={() => setSelectedSession(null)}
+        />
+      ) : null}
+    </>
   );
 }
 
 /* ---------- Writing ---------- */
 function WritingSection({ student }: { student: StudentDashboard }) {
+  const [selectedSession, setSelectedSession] = useState<WritingSessionRow | null>(null);
+
   return (
-    <WritingHistorySection
-      lessonHistory={student.lessonHistory}
-      evaluationSnapshots={student.evaluationSnapshots}
-      emptyMessage="아직 Writing 세션이 없습니다."
-    />
+    <>
+      <WritingHistorySection
+        lessonHistory={student.lessonHistory}
+        evaluationSnapshots={student.evaluationSnapshots}
+        emptyMessage="아직 Writing 세션이 없습니다."
+        onSelectSession={setSelectedSession}
+      />
+      {selectedSession ? (
+        <SessionDetailModal
+          kind="writing"
+          session={selectedSession}
+          onClose={() => setSelectedSession(null)}
+        />
+      ) : null}
+    </>
   );
 }
 
