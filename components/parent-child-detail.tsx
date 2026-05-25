@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   DashboardData,
   RewardRule,
   StudentDashboard
 } from "@/lib/types";
-import { ScoreHistory } from "@/components/score-history";
+import { DailyJourneyChart } from "@/components/daily-journey-chart";
 import {
   SpeakingHistorySection,
   WritingHistorySection
@@ -82,6 +82,18 @@ function OverviewSection({ student }: { student: StudentDashboard }) {
   const activeSkills = student.skillStates.length;
   const strongestSkill = [...student.skillStates].sort((a, b) => b.score - a.score)[0];
 
+  const speakingTries = useMemo(
+    () => student.speakingAttempts.map((a) => ({ date: a.date, score: a.score })),
+    [student.speakingAttempts]
+  );
+  const writingTries = useMemo(
+    () =>
+      student.evaluationSnapshots
+        .filter((s) => s.mode === "writing")
+        .map((s) => ({ date: s.date, score: s.overallScore })),
+    [student.evaluationSnapshots]
+  );
+
   const [summary, setSummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
 
@@ -151,10 +163,18 @@ function OverviewSection({ student }: { student: StudentDashboard }) {
       </div>
 
       <div className="quest-board overview-panel">
-        <ScoreHistory
-          points={student.progressPoints}
-          title="점수 변화 히스토리"
-          caption="Speaking · Writing · Confidence 점수의 일자별 흐름입니다."
+        <DailyJourneyChart
+          tries={speakingTries}
+          title="Speaking 일자별 점수 + 그날의 도전 흐름"
+          caption="막대 높이는 그날의 마지막 점수. 막대 안의 가로선은 그날 시도했던 점수들이에요. (녹색은 최고 점수) 막대 위에 마우스를 올리면 Try별 점수가 보입니다."
+        />
+      </div>
+
+      <div className="quest-board overview-panel">
+        <DailyJourneyChart
+          tries={writingTries}
+          title="Writing 일자별 점수 + 그날의 도전 흐름"
+          caption="막대 높이는 그날의 마지막 점수. 막대 안의 가로선은 그날 시도했던 점수들이에요. (녹색은 최고 점수) 막대 위에 마우스를 올리면 Try별 점수가 보입니다."
         />
       </div>
 

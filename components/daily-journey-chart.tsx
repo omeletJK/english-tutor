@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+type HoverState = {
+  date: string;
+  anchorTop: number;
+  anchorLeft: number;
+  scores: number[];
+  final: number;
+  best: number;
+};
 
 /* ---------------------------------------------------------------- *
  * Per-day bar chart with the day's try-journey overlaid inside
@@ -31,7 +40,15 @@ export function DailyJourneyChart({
 }) {
   const days = useMemo(() => groupByDate(tries), [tries]);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState<HoverState | null>(null);
   useScrollToEnd(scrollerRef, days.length);
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const clear = () => setHover(null);
+    el.addEventListener("scroll", clear);
+    return () => el.removeEventListener("scroll", clear);
+  }, []);
 
   if (days.length === 0) {
     return (
@@ -131,6 +148,23 @@ export function DailyJourneyChart({
               const barHeight = Math.max(baseY - finalY, 2);
               const tickX1 = barX + 2;
               const tickX2 = barX + BAR_WIDTH - 2;
+              const isHovered = hover?.date === day.date;
+
+              function showTooltip(event: React.MouseEvent<SVGRectElement>) {
+                const rect = event.currentTarget.getBoundingClientRect();
+                setHover({
+                  date: day.date,
+                  anchorTop: rect.top,
+                  anchorLeft: rect.left + rect.width / 2,
+                  scores: day.scores,
+                  final: day.final,
+                  best: day.best
+                });
+              }
+
+              function hideTooltip() {
+                setHover((current) => (current?.date === day.date ? null : current));
+              }
 
               return (
                 <g key={day.date}>
@@ -141,7 +175,7 @@ export function DailyJourneyChart({
                     height={barHeight}
                     rx={6}
                     fill="var(--accent)"
-                    opacity={0.16}
+                    opacity={isHovered ? 0.28 : 0.16}
                   >
                     <title>{`${formatTooltipDate(day.date)} · 최종 ${day.final}점 · ${day.scores.length}회 시도`}</title>
                   </rect>
@@ -159,9 +193,8 @@ export function DailyJourneyChart({
                             stroke={isBest ? "var(--moss)" : "var(--accent)"}
                             strokeWidth={1.5}
                             opacity={isBest ? 0.9 : 0.55}
-                          >
-                            <title>{`Try ${idx + 1}: ${s}점${isBest ? " (최고)" : ""}`}</title>
-                          </line>
+                            pointerEvents="none"
+                          />
                         );
                       })
                     : null}
@@ -173,6 +206,7 @@ export function DailyJourneyChart({
                     fontSize="11"
                     fontWeight="600"
                     fill="var(--ink)"
+                    pointerEvents="none"
                   >
                     {day.final}
                   </text>
@@ -184,10 +218,23 @@ export function DailyJourneyChart({
                       textAnchor="middle"
                       fontSize="9"
                       fill="var(--ink-faint)"
+                      pointerEvents="none"
                     >
                       {day.scores.length}회
                     </text>
                   ) : null}
+
+                  <rect
+                    x={barX - 6}
+                    y={PADDING_Y.top}
+                    width={BAR_WIDTH + 12}
+                    height={baseY - PADDING_Y.top}
+                    fill="transparent"
+                    onMouseEnter={showTooltip}
+                    onMouseMove={showTooltip}
+                    onMouseLeave={hideTooltip}
+                    style={{ cursor: "help" }}
+                  />
                 </g>
               );
             })}
@@ -213,6 +260,48 @@ export function DailyJourneyChart({
       ) : null}
 
       {caption ? <p className="score-history-caption">{caption}</p> : null}
+
+      {hover ? <JourneyTooltip hover={hover} /> : null}
+    </div>
+  );
+}
+
+function JourneyTooltip({ hover }: { hover: HoverState }) {
+  return (
+    <div
+      className="daily-journey-tooltip"
+      style={{ top: hover.anchorTop - 12, left: hover.anchorLeft }}
+      role="tooltip"
+    >
+      <div className="daily-journey-tooltip__head">
+        <strong>{formatTooltipDate(hover.date)}</strong>
+        <span>{hover.scores.length}회 시도</span>
+      </div>
+      <ol className="daily-journey-tooltip__list">
+        {hover.scores.map((score, idx) => {
+          const prev = idx > 0 ? hover.scores[idx - 1] : null;
+          const delta = prev !== null ? score - prev : 0;
+          const isFinal = idx === hover.scores.length - 1;
+          const isBest = score === hover.best;
+          return (
+            <li
+              key={idx}
+              className={`${isFinal ? "final" : ""} ${isBest ? "best" : ""}`.trim()}
+            >
+              <span className="try-label">Try {idx + 1}</span>
+              <strong>{score}</strong>
+              {prev !== null ? (
+                <span className={`delta ${delta > 0 ? "up" : delta < 0 ? "down" : "same"}`}>
+                  {delta > 0 ? "+" : ""}
+                  {delta}
+                </span>
+              ) : null}
+              {isFinal ? <span className="tag final-tag">최종</span> : null}
+              {isBest && !isFinal ? <span className="tag best-tag">최고</span> : null}
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }

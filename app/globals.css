@@ -421,76 +421,6 @@ select:focus {
   animation: enter 240ms var(--ease) both;
 }
 
-/* ---------- Workspace header ---------- */
-.workspace-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 16px;
-  align-items: center;
-  padding: 18px 22px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  background: var(--surface);
-}
-
-.workspace-header h2 {
-  font-size: 1.375rem;
-  letter-spacing: -0.02em;
-}
-
-.workspace-stats {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: end;
-  gap: 6px;
-}
-
-.workspace-stats span {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 4px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: transparent;
-  color: var(--ink-soft);
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-/* ---------- Mode picker ---------- */
-.quest-mode-picker {
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: var(--sand);
-}
-
-.quest-mode-picker button {
-  min-width: 84px;
-  min-height: 34px;
-  padding: 0 16px;
-  border-radius: var(--r-pill);
-  background: transparent;
-  color: var(--ink-soft);
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-
-.quest-mode-picker button.selected {
-  background: var(--surface);
-  color: var(--ink);
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(20, 16, 8, 0.06);
-}
-
-.quest-mode-picker small {
-  font-size: 0.8rem;
-  color: inherit;
-}
-
 /* ---------- Activity shells (Speaking / Writing) ---------- */
 .activity-shell,
 .quest-board {
@@ -1028,7 +958,6 @@ select:focus {
 .quest-submit:active,
 .login-card > button:active,
 .logout-button:active,
-.quest-mode-picker button:active,
 .soft-button:active {
   transform: translateY(1px);
 }
@@ -2472,6 +2401,77 @@ select:focus {
   text-align: right;
 }
 
+/* Activity log (full-width) */
+.activity-log {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activity-log li {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.activity-log li:last-child {
+  border-bottom: 0;
+}
+
+.activity-mode-tag {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.activity-mode-tag.writing {
+  color: var(--moss);
+}
+
+.activity-body strong {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.activity-log-meta {
+  color: var(--ink-faint);
+  font-size: 0.88rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Skill grid (full-width, horizontal cards) */
+.skill-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.skill-grid li {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
 .skill-list li {
   display: grid;
   gap: 6px;
@@ -2914,6 +2914,16 @@ select:focus {
   .overview-row {
     grid-template-columns: 1fr;
   }
+
+  .activity-log li {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 12px 0;
+  }
+
+  .activity-log-meta {
+    text-align: left;
+  }
 }
 
 /* ---------- Login ---------- */
@@ -3096,10 +3106,8 @@ select:focus {
 
 @media (max-width: 680px) {
   .game-tabs,
-  .quest-mode-picker,
   .idea-strip,
   .skill-cloud,
-  .reward-ledger,
   .parent-stats,
   .parent-summary-grid,
   .parent-report-grid,
@@ -3419,6 +3427,119 @@ select:focus {
   color: var(--ink-soft);
   font-size: 0.85rem;
   margin: 0;
+}
+
+.daily-journey-tooltip {
+  position: fixed;
+  z-index: 50;
+  min-width: 180px;
+  max-width: 260px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px rgba(20, 16, 8, 0.12);
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  font-size: 0.85rem;
+}
+
+.daily-journey-tooltip__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.daily-journey-tooltip__head strong {
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.daily-journey-tooltip__head span {
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+}
+
+.daily-journey-tooltip__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.daily-journey-tooltip__list li {
+  display: grid;
+  grid-template-columns: 52px 32px auto 1fr;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.daily-journey-tooltip__list li.final {
+  background: var(--accent-wash);
+}
+
+.daily-journey-tooltip__list li.best {
+  background: var(--moss-wash);
+}
+
+.daily-journey-tooltip__list li.final.best {
+  background: linear-gradient(90deg, var(--moss-wash), var(--accent-wash));
+}
+
+.daily-journey-tooltip__list .try-label {
+  color: var(--ink-faint);
+  font-size: 0.78rem;
+}
+
+.daily-journey-tooltip__list strong {
+  color: var(--ink);
+  font-weight: 700;
+  text-align: right;
+}
+
+.daily-journey-tooltip__list .delta {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.daily-journey-tooltip__list .delta.up {
+  color: var(--moss);
+}
+
+.daily-journey-tooltip__list .delta.down {
+  color: var(--accent-deep);
+}
+
+.daily-journey-tooltip__list .delta.same {
+  color: var(--ink-faint);
+}
+
+.daily-journey-tooltip__list .tag {
+  justify-self: end;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.daily-journey-tooltip__list .final-tag {
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.daily-journey-tooltip__list .best-tag {
+  background: var(--moss);
+  color: var(--surface);
 }
 
 @media (max-width: 680px) {
@@ -3762,6 +3883,47 @@ select:focus {
   padding: 0;
   border: 0;
   background: transparent;
+}
+
+.kid-transcript p:not(.tiny-label) {
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.kid-metrics .kid-metric-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.kid-metrics .kid-metric-chips span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--sand);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.kid-metrics .kid-metric-chips strong {
+  color: var(--ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.kid-power-ups .kid-reference-drill {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.kid-power-ups .kid-reference-drill button {
+  width: 100%;
 }
 
 .kid-retry {

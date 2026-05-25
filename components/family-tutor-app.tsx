@@ -363,7 +363,7 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
             <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
               <strong style={{ fontSize: "0.95rem" }}>{activeStudent.student.displayName}</strong>
               <small style={{ color: "var(--ink-faint)", fontSize: "0.75rem" }}>
-                {activeStudent.student.cefrLevel} · {activeStudent.student.usGradeLevel}
+                {activeStudent.student.cefrLevel} · {activeStudent.student.usGradeLevel} · {latestOverallScore(activeStudent)}점
               </small>
             </div>
           </div>
@@ -647,8 +647,6 @@ function PlayView({
 
   return (
     <div className="play-grid">
-      <WorkspaceHeader activeStudent={activeStudent} questMode={questMode} setQuestMode={setQuestMode} />
-
       {questMode === "speaking" ? (
         <section className="activity-shell speaking-shell">
           <div className="thread-panel">
@@ -819,30 +817,6 @@ function PlayView({
         </div>
       ) : null}
     </div>
-  );
-}
-
-function WorkspaceHeader({
-  activeStudent,
-  questMode
-}: {
-  activeStudent: StudentDashboard;
-  questMode: TaskMode;
-  setQuestMode: (mode: TaskMode) => void;
-}) {
-  const latestScore = latestOverallScore(activeStudent);
-
-  return (
-    <section className="workspace-header">
-      <div>
-        <p className="tiny-label">Today's room</p>
-        <h2>{questMode === "speaking" ? "Let's talk in English" : "Write your best draft"}</h2>
-      </div>
-      <div className="workspace-stats" aria-label="Current progress">
-        <span>{latestScore} score</span>
-        <span>{activeStudent.student.usGradeLevel}</span>
-      </div>
-    </section>
   );
 }
 
