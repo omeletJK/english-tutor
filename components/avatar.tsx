@@ -8,8 +8,10 @@ import {
   imageUrl,
   loadAvatar,
   saveAvatar,
+  AVATAR_UPDATED_EVENT,
   type AvatarCategoryKey,
-  type AvatarSelection
+  type AvatarSelection,
+  type AvatarUpdatedDetail
 } from "@/lib/avatar";
 
 const CANVAS_RATIO = avatarManifest.canvasHeight / avatarManifest.canvasWidth;
@@ -245,6 +247,26 @@ export function AvatarButton({
 
   useEffect(() => {
     setSelection(loadAvatar(studentId));
+
+    function handleAvatarUpdate(event: Event) {
+      const detail = (event as CustomEvent<AvatarUpdatedDetail>).detail;
+      if (detail?.studentId === studentId) {
+        setSelection(detail.selection);
+      }
+    }
+
+    function handleStorage(event: StorageEvent) {
+      if (event.key && event.key.endsWith(`:${studentId}`)) {
+        setSelection(loadAvatar(studentId));
+      }
+    }
+
+    window.addEventListener(AVATAR_UPDATED_EVENT, handleAvatarUpdate);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener(AVATAR_UPDATED_EVENT, handleAvatarUpdate);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, [studentId]);
 
   return (

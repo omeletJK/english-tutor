@@ -35,12 +35,21 @@ export function loadAvatar(studentId: string): AvatarSelection {
   }
 }
 
+export const AVATAR_UPDATED_EVENT = "omelet-avatar-updated";
+
+export type AvatarUpdatedDetail = { studentId: string; selection: AvatarSelection };
+
 export function saveAvatar(studentId: string, selection: AvatarSelection) {
   if (typeof window === "undefined") {
     return;
   }
   try {
     window.localStorage.setItem(storageKey(studentId), JSON.stringify(selection));
+    window.dispatchEvent(
+      new CustomEvent<AvatarUpdatedDetail>(AVATAR_UPDATED_EVENT, {
+        detail: { studentId, selection }
+      })
+    );
   } catch {
     // localStorage may be unavailable; silently ignore.
   }
