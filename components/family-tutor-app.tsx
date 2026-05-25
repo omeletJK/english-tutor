@@ -10,7 +10,7 @@ import {
   type WritingSessionRow
 } from "@/components/session-history";
 import { SessionDetailModal } from "@/components/session-detail-modal";
-import { ScoreHistory } from "@/components/score-history";
+import { DailyJourneyChart } from "@/components/daily-journey-chart";
 import type {
   DashboardData,
   EvaluationSnapshot,
@@ -503,13 +503,23 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
               {subTab === "progress" ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                   <section className="quest-board">
-                    <ScoreHistory
-                      points={activeStudent.progressPoints.filter((p) =>
-                        activeTab === "writing" ? p.writing > 0 : p.speaking > 0
-                      )}
-                      seriesKeys={[activeTab]}
-                      title={activeTab === "writing" ? "Writing 일자별 최종 점수" : "Speaking 일자별 최종 점수"}
-                      caption="하루에 여러 번 시도해도 막대 하나로 표시됩니다 — 그날의 마지막 점수예요."
+                    <DailyJourneyChart
+                      tries={
+                        activeTab === "speaking"
+                          ? activeStudent.speakingAttempts.map((a) => ({
+                              date: a.date,
+                              score: a.score
+                            }))
+                          : activeStudent.lessonHistory
+                              .filter((l) => l.mode === "writing")
+                              .map((l) => ({ date: l.date, score: l.score }))
+                      }
+                      title={
+                        activeTab === "writing"
+                          ? "Writing 일자별 점수 + 그날의 도전 흐름"
+                          : "Speaking 일자별 점수 + 그날의 도전 흐름"
+                      }
+                      caption="막대 높이는 그날의 마지막 점수. 점과 선은 그날 1차·2차·3차 시도의 흐름이에요."
                     />
                   </section>
                   <section className="quest-board">
