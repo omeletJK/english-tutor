@@ -347,41 +347,30 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
 
   return (
     <main className="game-shell">
-      <div className="game-layout">
-        <aside className="history-rail" aria-label="수업 기록">
-          <div className="mini-profile">
+      <section className="game-stage">
+        <header
+          className="stage-topbar"
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <AvatarButton
               studentId={activeStudent.student.id}
               studentName={activeStudent.student.displayName}
-              size={200}
+              size={44}
               shape="rounded"
               crop="bust"
             />
-            <div className="mini-profile-meta">
-              <strong>{activeStudent.student.displayName}</strong>
-              <span>{activeStudent.student.email}</span>
-              <small className="mini-profile-level">{activeStudent.student.cefrLevel}</small>
+            <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
+              <strong style={{ fontSize: "0.95rem" }}>{activeStudent.student.displayName}</strong>
+              <small style={{ color: "var(--ink-faint)", fontSize: "0.75rem" }}>
+                {activeStudent.student.cefrLevel} · {activeStudent.student.usGradeLevel}
+              </small>
             </div>
           </div>
-          <h2>History</h2>
-          <div className="history-list">
-            {activeStudent.lessonHistory.map((item) => (
-              <div className="history-pill" key={item.id}>
-                <span>{item.mode === "speaking" ? "Talk" : "Write"}</span>
-                <strong>{item.title}</strong>
-                <small>
-                  {item.date} · {item.score} pts
-                </small>
-              </div>
-            ))}
-          </div>
-        </aside>
 
-        <section className="game-stage">
-          <header className="stage-topbar">
-            <nav className="game-tabs" aria-label="Main tabs">
-              {[
-                ["writing", "Writing"],
+          <nav className="game-tabs" aria-label="Main tabs">
+            {[
+              ["writing", "Writing"],
                 ["speaking", "Speaking"],
                 ["reward", "Reward"]
               ].map(([key, label]) => (
@@ -443,31 +432,63 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
               </nav>
 
               {subTab === "today" ? (
-                <PlayView
-                  activeStudent={activeStudent}
-                  completeQuest={completeQuest}
-                  feedback={feedback}
-                  isSubmitting={isSubmitting}
-                  questMode={questMode}
-                  recordingError={recordingError}
-                  recordingState={recordingState}
-                  heardReference={heardReference}
-                  onRetryWriting={onRetryWriting}
-                  onRetrySpeaking={onRetrySpeaking}
-                  retryMode={retryMode}
-                  setQuestMode={setQuestMode}
-                  setWritingPracticeInput={setWritingPracticeInput}
-                  setWritingDraft={setWritingDraft}
-                  speakingFeedback={speakingFeedback}
-                  speakReference={speakReference}
-                  startRecording={startRecording}
-                  startBrainstorming={startBrainstorming}
-                  stopRecording={stopRecording}
-                  writingDraft={writingDraft}
-                  writingPracticeInputs={writingPracticeInputs}
-                  writingScoreTrail={writingScoreTrail}
-                  brainstorming={brainstorming}
-                />
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <section
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 18,
+                      padding: 20,
+                      background: "var(--surface)",
+                      border: "1px solid var(--line)",
+                      borderRadius: 14
+                    }}
+                  >
+                    <AvatarButton
+                      studentId={activeStudent.student.id}
+                      studentName={activeStudent.student.displayName}
+                      size={96}
+                      shape="rounded"
+                      crop="bust"
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <h2 style={{ margin: 0, lineHeight: 1.3, fontSize: "1.2rem" }}>
+                        안녕 {activeStudent.student.displayName}!
+                      </h2>
+                      <p style={{ margin: "6px 0 0", color: "var(--ink-soft)", lineHeight: 1.5 }}>
+                        {activeTab === "writing"
+                          ? "오늘은 어떤 글을 써볼까? 천천히 생각해보고 시작해도 돼."
+                          : "오늘은 어떤 이야기를 해볼까? 준비되면 녹음 버튼을 눌러봐."}
+                      </p>
+                    </div>
+                  </section>
+
+                  <PlayView
+                    activeStudent={activeStudent}
+                    completeQuest={completeQuest}
+                    feedback={feedback}
+                    isSubmitting={isSubmitting}
+                    questMode={questMode}
+                    recordingError={recordingError}
+                    recordingState={recordingState}
+                    heardReference={heardReference}
+                    onRetryWriting={onRetryWriting}
+                    onRetrySpeaking={onRetrySpeaking}
+                    retryMode={retryMode}
+                    setQuestMode={setQuestMode}
+                    setWritingPracticeInput={setWritingPracticeInput}
+                    setWritingDraft={setWritingDraft}
+                    speakingFeedback={speakingFeedback}
+                    speakReference={speakReference}
+                    startRecording={startRecording}
+                    startBrainstorming={startBrainstorming}
+                    stopRecording={stopRecording}
+                    writingDraft={writingDraft}
+                    writingPracticeInputs={writingPracticeInputs}
+                    writingScoreTrail={writingScoreTrail}
+                    brainstorming={brainstorming}
+                  />
+                </div>
               ) : null}
 
               {subTab === "growth" ? (
@@ -545,8 +566,7 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
           ) : null}
 
           {activeTab === "reward" ? <RewardView activeStudent={activeStudent} /> : null}
-        </section>
-      </div>
+      </section>
 
       {selectedSession ? (
         selectedSession.kind === "speaking" ? (
