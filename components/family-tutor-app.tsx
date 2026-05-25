@@ -29,7 +29,7 @@ type FamilyTutorAppProps = {
 };
 
 type AppTab = "writing" | "speaking" | "reward";
-type ModeSubTab = "today" | "history" | "progress";
+type ModeSubTab = "today" | "growth";
 
 type SelectedSession =
   | { kind: "speaking"; session: SpeakingSessionRow }
@@ -413,8 +413,7 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
                 {(
                   [
                     ["today", "오늘"],
-                    ["history", "기록"],
-                    ["progress", "성장"]
+                    ["growth", "성장"]
                   ] as Array<[ModeSubTab, string]>
                 ).map(([key, label]) => {
                   const active = subTab === key;
@@ -471,36 +470,7 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
                 />
               ) : null}
 
-              {subTab === "history" ? (
-                <section className="quest-board">
-                  <div className="quest-title-row">
-                    <div>
-                      <p className="tiny-label">My History</p>
-                      <h2>{activeTab === "writing" ? "내가 쓴 것들" : "내가 말한 것들"}</h2>
-                    </div>
-                  </div>
-                  {activeTab === "speaking" ? (
-                    <SpeakingHistorySection
-                      attempts={activeStudent.speakingAttempts}
-                      emptyMessage="아직 말한 기록이 없어요. 오늘 탭에서 도전해 보세요."
-                      onSelectSession={(session) =>
-                        setSelectedSession({ kind: "speaking", session })
-                      }
-                    />
-                  ) : (
-                    <WritingHistorySection
-                      lessonHistory={activeStudent.lessonHistory}
-                      evaluationSnapshots={activeStudent.evaluationSnapshots}
-                      emptyMessage="아직 쓴 기록이 없어요. 오늘 탭에서 도전해 보세요."
-                      onSelectSession={(session) =>
-                        setSelectedSession({ kind: "writing", session })
-                      }
-                    />
-                  )}
-                </section>
-              ) : null}
-
-              {subTab === "progress" ? (
+              {subTab === "growth" ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                   <section className="quest-board">
                     <DailyJourneyChart
@@ -522,6 +492,7 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
                       caption="막대 높이는 그날의 마지막 점수. 막대 안의 가로선은 그날 시도했던 점수들이에요. (녹색은 최고 점수)"
                     />
                   </section>
+
                   <section className="quest-board">
                     <div className="quest-title-row">
                       <div>
@@ -540,6 +511,33 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
                         </div>
                       ))}
                     </div>
+                  </section>
+
+                  <section className="quest-board">
+                    <div className="quest-title-row">
+                      <div>
+                        <p className="tiny-label">Records</p>
+                        <h2>{activeTab === "writing" ? "내가 쓴 것들" : "내가 말한 것들"}</h2>
+                      </div>
+                    </div>
+                    {activeTab === "speaking" ? (
+                      <SpeakingHistorySection
+                        attempts={activeStudent.speakingAttempts}
+                        emptyMessage="아직 말한 기록이 없어요. 오늘 탭에서 도전해 보세요."
+                        onSelectSession={(session) =>
+                          setSelectedSession({ kind: "speaking", session })
+                        }
+                      />
+                    ) : (
+                      <WritingHistorySection
+                        lessonHistory={activeStudent.lessonHistory}
+                        evaluationSnapshots={activeStudent.evaluationSnapshots}
+                        emptyMessage="아직 쓴 기록이 없어요. 오늘 탭에서 도전해 보세요."
+                        onSelectSession={(session) =>
+                          setSelectedSession({ kind: "writing", session })
+                        }
+                      />
+                    )}
                   </section>
                 </div>
               ) : null}
