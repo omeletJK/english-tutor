@@ -29,6 +29,7 @@ type FamilyTutorAppProps = {
 };
 
 type AppTab = "writing" | "speaking" | "reward";
+type ModeSubTab = "today" | "history" | "progress";
 
 type SelectedSession =
   | { kind: "speaking"; session: SpeakingSessionRow }
@@ -52,6 +53,7 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
   const [students, setStudents] = useState<StudentDashboard[]>(initialData.students);
   const activeStudentId = initialData.activeStudentId;
   const [activeTab, setActiveTab] = useState<AppTab>("speaking");
+  const [subTab, setSubTab] = useState<ModeSubTab>("today");
   const questMode: TaskMode = activeTab === "writing" ? "writing" : "speaking";
   const setQuestMode = (mode: TaskMode) => setActiveTab(mode);
   const [selectedSession, setSelectedSession] = useState<SelectedSession | null>(null);
@@ -399,65 +401,133 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
           </header>
 
           {activeTab === "writing" || activeTab === "speaking" ? (
-            <div className="mode-tab-stack" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              <ModeScoreSparkline
-                snapshots={activeStudent.evaluationSnapshots}
-                mode={activeTab}
-                label={activeTab === "writing" ? "Writing 점수 흐름" : "Speaking 점수 흐름"}
-              />
+            <div className="mode-tab-stack" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <nav
+                aria-label="Sub views"
+                style={{
+                  display: "flex",
+                  gap: 4,
+                  borderBottom: "1px solid var(--line)"
+                }}
+              >
+                {(
+                  [
+                    ["today", "오늘"],
+                    ["history", "기록"],
+                    ["progress", "성장"]
+                  ] as Array<[ModeSubTab, string]>
+                ).map(([key, label]) => {
+                  const active = subTab === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setSubTab(key)}
+                      style={{
+                        padding: "10px 16px",
+                        background: "transparent",
+                        border: "none",
+                        borderBottom: active
+                          ? "2px solid var(--accent)"
+                          : "2px solid transparent",
+                        color: active ? "var(--ink)" : "var(--ink-soft)",
+                        fontWeight: active ? 600 : 500,
+                        cursor: "pointer",
+                        fontSize: "0.95rem",
+                        marginBottom: -1
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </nav>
 
-              <PlayView
-                activeStudent={activeStudent}
-                completeQuest={completeQuest}
-                feedback={feedback}
-                isSubmitting={isSubmitting}
-                questMode={questMode}
-                recordingError={recordingError}
-                recordingState={recordingState}
-                heardReference={heardReference}
-                onRetryWriting={onRetryWriting}
-                onRetrySpeaking={onRetrySpeaking}
-                retryMode={retryMode}
-                setQuestMode={setQuestMode}
-                setWritingPracticeInput={setWritingPracticeInput}
-                setWritingDraft={setWritingDraft}
-                speakingFeedback={speakingFeedback}
-                speakReference={speakReference}
-                startRecording={startRecording}
-                startBrainstorming={startBrainstorming}
-                stopRecording={stopRecording}
-                writingDraft={writingDraft}
-                writingPracticeInputs={writingPracticeInputs}
-                writingScoreTrail={writingScoreTrail}
-                brainstorming={brainstorming}
-              />
+              {subTab === "today" ? (
+                <PlayView
+                  activeStudent={activeStudent}
+                  completeQuest={completeQuest}
+                  feedback={feedback}
+                  isSubmitting={isSubmitting}
+                  questMode={questMode}
+                  recordingError={recordingError}
+                  recordingState={recordingState}
+                  heardReference={heardReference}
+                  onRetryWriting={onRetryWriting}
+                  onRetrySpeaking={onRetrySpeaking}
+                  retryMode={retryMode}
+                  setQuestMode={setQuestMode}
+                  setWritingPracticeInput={setWritingPracticeInput}
+                  setWritingDraft={setWritingDraft}
+                  speakingFeedback={speakingFeedback}
+                  speakReference={speakReference}
+                  startRecording={startRecording}
+                  startBrainstorming={startBrainstorming}
+                  stopRecording={stopRecording}
+                  writingDraft={writingDraft}
+                  writingPracticeInputs={writingPracticeInputs}
+                  writingScoreTrail={writingScoreTrail}
+                  brainstorming={brainstorming}
+                />
+              ) : null}
 
-              <section className="quest-board">
-                <div className="quest-title-row">
-                  <div>
-                    <p className="tiny-label">My History</p>
-                    <h2>{activeTab === "writing" ? "내가 쓴 것들" : "내가 말한 것들"}</h2>
+              {subTab === "history" ? (
+                <section className="quest-board">
+                  <div className="quest-title-row">
+                    <div>
+                      <p className="tiny-label">My History</p>
+                      <h2>{activeTab === "writing" ? "내가 쓴 것들" : "내가 말한 것들"}</h2>
+                    </div>
                   </div>
+                  {activeTab === "speaking" ? (
+                    <SpeakingHistorySection
+                      attempts={activeStudent.speakingAttempts}
+                      emptyMessage="아직 말한 기록이 없어요. 오늘 탭에서 도전해 보세요."
+                      onSelectSession={(session) =>
+                        setSelectedSession({ kind: "speaking", session })
+                      }
+                    />
+                  ) : (
+                    <WritingHistorySection
+                      lessonHistory={activeStudent.lessonHistory}
+                      evaluationSnapshots={activeStudent.evaluationSnapshots}
+                      emptyMessage="아직 쓴 기록이 없어요. 오늘 탭에서 도전해 보세요."
+                      onSelectSession={(session) =>
+                        setSelectedSession({ kind: "writing", session })
+                      }
+                    />
+                  )}
+                </section>
+              ) : null}
+
+              {subTab === "progress" ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                  <ModeScoreSparkline
+                    snapshots={activeStudent.evaluationSnapshots}
+                    mode={activeTab}
+                    label={activeTab === "writing" ? "Writing 점수 흐름" : "Speaking 점수 흐름"}
+                  />
+                  <section className="quest-board">
+                    <div className="quest-title-row">
+                      <div>
+                        <p className="tiny-label">Skills</p>
+                        <h2>내가 키우는 능력</h2>
+                      </div>
+                    </div>
+                    <div className="skill-cloud">
+                      {activeStudent.skillStates.map((skill) => (
+                        <div className="skill-token" key={skill.id}>
+                          <strong>{skill.skill}</strong>
+                          <span>{skill.score}/100</span>
+                          <div className="meter">
+                            <i style={{ width: `${skill.score}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 </div>
-                {activeTab === "speaking" ? (
-                  <SpeakingHistorySection
-                    attempts={activeStudent.speakingAttempts}
-                    emptyMessage="아직 말한 기록이 없어요. 위에서 오늘의 문제로 도전해 보세요."
-                    onSelectSession={(session) =>
-                      setSelectedSession({ kind: "speaking", session })
-                    }
-                  />
-                ) : (
-                  <WritingHistorySection
-                    lessonHistory={activeStudent.lessonHistory}
-                    evaluationSnapshots={activeStudent.evaluationSnapshots}
-                    emptyMessage="아직 쓴 기록이 없어요. 위에서 오늘의 문제로 도전해 보세요."
-                    onSelectSession={(session) =>
-                      setSelectedSession({ kind: "writing", session })
-                    }
-                  />
-                )}
-              </section>
+              ) : null}
             </div>
           ) : null}
 
