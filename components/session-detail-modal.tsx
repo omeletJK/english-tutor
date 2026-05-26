@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   SpeakingAttemptCard,
   WritingAttemptCard,
@@ -21,6 +22,11 @@ type ModalProps =
 
 export function SessionDetailModal(props: ModalProps) {
   const { onClose, session } = props;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     function handleKey(event: KeyboardEvent) {
@@ -37,7 +43,9 @@ export function SessionDetailModal(props: ModalProps) {
     };
   }, [onClose]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       role="presentation"
       onClick={onClose}
@@ -172,6 +180,7 @@ export function SessionDetailModal(props: ModalProps) {
               ))}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -2312,13 +2312,13 @@ select:focus {
 
 .section-tabs button {
   flex: 1;
-  min-height: 46px;
-  padding: 0 18px;
+  min-height: 52px;
+  padding: 0 26px;
   border-radius: var(--r-pill);
   background: transparent;
   color: var(--ink-soft);
   font-weight: 500;
-  font-size: 1.05rem;
+  font-size: 1.2rem;
 }
 
 .section-tabs button:hover {
