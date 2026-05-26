@@ -11,6 +11,9 @@ type GenerateInput = {
   mode: TaskMode;
   context: StudentContext;
   date?: string;
+  /** Prompts already shown to the student today for this mode. The new
+   *  prompt MUST address a different topic — not a rephrasing. */
+  avoidPrompts?: string[];
 };
 
 const taskCache = new Map<string, DailyTask>();
@@ -118,12 +121,14 @@ async function callOpenAIForTask(input: GenerateInput): Promise<DailyTask> {
                   lastSeen: o.lastSeen
                 })),
                 today: todayKey(),
+                recent_prompts_to_avoid: input.avoidPrompts ?? [],
                 authoring_rules: [
                   "Speaking and writing tasks for the same student MUST differ in topic and cognitive demand. Do not mirror them. If this is a writing task, do not produce an opinion question that would also work verbally — pick a topic that genuinely benefits from being written out.",
                   "Match the student's CEFR level precisely. A1 ≈ very simple personal/concrete; A2 ≈ familiar topics with reasons; B1 ≈ opinions and short arguments; B2+ ≈ abstract or comparative analysis.",
                   "Match the student's US grade equivalent. A Grade 5 student is 10-11 years old — do NOT use Grade 1 sentence frames. A Grade 7+ student is 12+ — they can handle opinions and hypotheticals.",
                   "Calibrate the prompt's cognitive load to student.curriculumStandard (CCSS-aligned grade expectations). Do not invent expectations beyond the listed grade; do not soften below it. Do not cite standard codes back to the student.",
                   "Use the student's recent observations and interests as topic seeds. Avoid repeating last week's topics.",
+                  "recent_prompts_to_avoid lists prompts ALREADY shown today for this same mode. The new prompt MUST address a CLEARLY DIFFERENT topic and angle — not a rephrasing, not the same subject from a different verb. If the avoided prompts are about school rules, pick a non-school topic (family, hobby, ethics, nature, technology, memory, future, etc.). The reader should immediately recognize the topic as new.",
                   "Target at most two skills, and they must appear in targetSkills as snake_case.",
                   "Korean generatedReason must reference a specific skill_state or observation that justifies this task today.",
                   "Korean successCriteria are evaluation hints, not sentence templates. Keep them about thinking outcomes (e.g., '이유 2개를 서로 다른 측면에서 제시') not phrasing rules."
@@ -221,7 +226,7 @@ function extractOutputText(payload: any): string {
 }
 
 export function fallbackAdaptiveTask(input: GenerateInput): DailyTask {
-  const { mode, context } = input;
+  const { mode, context, avoidPrompts } = input;
   const { student, skillStates, recentObservations } = context;
   const weakest = pickWeakestSkill(skillStates);
   const interest = pickInterestTopic(recentObservations);
@@ -234,7 +239,8 @@ export function fallbackAdaptiveTask(input: GenerateInput): DailyTask {
     weakest,
     interest,
     date,
-    studentId: student.id
+    studentId: student.id,
+    avoidPrompts
   });
 
   return {
@@ -265,8 +271,8 @@ function parseGradeNumber(label: string): number {
   return match ? Number(match[1]) : 5;
 }
 
-function buildFallbackPrompt(args: { mode: TaskMode; grade: number; weakest: SkillState | null; interest: string | null; date: string; studentId: string }) {
-  const { mode, grade, interest, date, studentId } = args;
+function buildFallbackPrompt(args: { mode: TaskMode; grade: number; weakest: SkillState | null; interest: string | null; date: string; studentId: string; avoidPrompts?: string[] }) {
+  const { mode, grade, interest, date, studentId, avoidPrompts } = args;
   const topicSeed = interest ? extractTopicSeed(interest) : null;
 
   const speakingByLevel: Record<"low" | "mid" | "high", string[]> = {
@@ -339,11 +345,17 @@ function buildFallbackPrompt(args: { mode: TaskMode; grade: number; weakest: Ski
   const band = grade <= 3 ? "low" : grade <= 6 ? "mid" : "high";
   const pool = mode === "speaking" ? speakingByLevel[band] : writingByLevel[band];
 
+  // Exclude prompts already shown today so a refresh genuinely rotates topics.
+  const avoidSet = new Set((avoidPrompts ?? []).map((p) => p.trim()));
+  const filtered = pool.filter((p) => !avoidSet.has(p));
+  const candidates = filtered.length > 0 ? filtered : pool;
+
   // Stable hash that rotates each day AND differs between students and modes,
-  // so the same student rarely sees the same prompt within a week.
-  const seedString = `${studentId}-${mode}-${date}-${topicSeed ?? args.weakest?.skill ?? "general"}`;
+  // so the same student rarely sees the same prompt within a week. Mixing
+  // avoidPrompts.length into the seed forces a different pick on each refresh.
+  const seedString = `${studentId}-${mode}-${date}-${topicSeed ?? args.weakest?.skill ?? "general"}-r${avoidSet.size}`;
   const seedHash = hashString(seedString);
-  return pool[seedHash % pool.length];
+  return candidates[seedHash % candidates.length];
 }
 
 function hashString(input: string): number {

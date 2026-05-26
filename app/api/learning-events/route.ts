@@ -114,12 +114,26 @@ export async function POST(request: Request) {
   const updatedContext = await loadStudentContext(student);
   const today = new Date().toISOString().slice(0, 10);
 
+  // Pull every prompt already used today for this mode (just-completed + any
+  // earlier skipped) so the next prompt picks a different topic.
+  const { data: priorRows } = await supabase
+    .from("daily_tasks")
+    .select("prompt")
+    .eq("student_id", student.id)
+    .eq("task_date", today)
+    .eq("mode", body.mode)
+    .in("status", ["skipped", "completed"]);
+  const avoidPrompts = (priorRows ?? [])
+    .map((row: { prompt: string | null }) => (row.prompt ?? "").trim())
+    .filter(Boolean);
+
   // Force a brand-new prompt for the same date — bypass any stale cache.
   clearCachedTask(student.id, body.mode, today);
   const nextTask = await generateAdaptiveTask({
     mode: body.mode,
     context: updatedContext,
-    date: today
+    date: today,
+    avoidPrompts
   });
 
   const { data: insertedNext } = await supabase

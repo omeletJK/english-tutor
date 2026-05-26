@@ -40,8 +40,25 @@ export async function POST(request: Request) {
       .eq("status", "assigned");
   }
 
+  // Collect every prompt the student has already seen today for this mode so
+  // the next generation truly rotates topics (the previous behaviour rephrased
+  // because the model never knew what it had just produced).
+  let avoidPrompts: string[] = [];
+  if (supabase) {
+    const { data: priorRows } = await supabase
+      .from("daily_tasks")
+      .select("prompt")
+      .eq("student_id", student.id)
+      .eq("task_date", today)
+      .eq("mode", mode)
+      .in("status", ["skipped", "completed"]);
+    avoidPrompts = (priorRows ?? [])
+      .map((row: { prompt: string | null }) => (row.prompt ?? "").trim())
+      .filter(Boolean);
+  }
+
   clearCachedTask(student.id, mode, today);
-  const task = await generateAdaptiveTask({ mode, context, date: today });
+  const task = await generateAdaptiveTask({ mode, context, date: today, avoidPrompts });
 
   if (supabase) {
     const { data } = await supabase
