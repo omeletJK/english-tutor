@@ -1,6 +1,7 @@
 import { getCurrentUser, rejectWithoutFamilySession } from "@/lib/auth";
 import { ensureDefaultStudent } from "@/lib/dashboard";
 import { evaluateSpeakingAttempt } from "@/lib/openai";
+import { maybeGrantDualModeBonus } from "@/lib/rewards";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export async function POST(request: Request) {
@@ -98,5 +99,7 @@ export async function POST(request: Request) {
     );
   }
 
-  return Response.json(result);
+  const dualModeBonus = await maybeGrantDualModeBonus(student.id);
+
+  return Response.json({ ...result, dualModeBonus });
 }
