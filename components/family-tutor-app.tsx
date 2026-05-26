@@ -133,20 +133,20 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
               return [
                 {
                   id: `writing-score-${Date.now()}`,
-                  label: "Draft 1",
+                  label: "처음 글",
                   score
                 }
               ];
             }
 
-            const rewriteCount = current.filter((entry) => entry.label.startsWith("Rewrite")).length + 1;
+            const rewriteCount = current.filter((entry) => entry.label.startsWith("다시")).length + 1;
             const previousScore = result.revisionComparison?.previousScore ?? current[current.length - 1]?.score ?? score;
 
             return [
               ...current,
               {
                 id: `writing-score-${Date.now()}`,
-                label: `Rewrite ${rewriteCount}`,
+                label: `다시 ${rewriteCount}번`,
                 score,
                 delta: result.revisionComparison?.scoreDelta ?? score - previousScore
               }
@@ -778,16 +778,6 @@ function PlayView({
               </div>
             </div>
 
-            <div className="attempt-history">
-              <p className="tiny-label">Attempt history</p>
-              <div>
-                {activeStudent.speakingAttempts.map((attempt, index) => (
-                  <span key={attempt.id}>
-                    Try {activeStudent.speakingAttempts.length - index}: {attempt.score}
-                  </span>
-                ))}
-              </div>
-            </div>
           </div>
 
           {recordingError ? <div className="voice-error">{recordingError}</div> : null}
@@ -993,20 +983,31 @@ function SpeakingReview({
 
       {orderedAttempts.length > 1 ? (
         <div className="kid-score-trail">
-          <p className="tiny-label">내 도전 기록</p>
+          <p className="tiny-label">👣 내 도전 발자국</p>
           <div>
             {orderedAttempts.map((a, index) => {
               const isLast = index === orderedAttempts.length - 1;
               const prevA = index > 0 ? orderedAttempts[index - 1] : null;
               const delta = prevA ? a.score - prevA.score : 0;
               const sign = delta > 0 ? "up" : delta < 0 ? "down" : "same";
+              const isBest = a.score === bestScore;
+              const classes = [isLast ? "current" : "", sign, isBest ? "best" : ""]
+                .filter(Boolean)
+                .join(" ");
               return (
-                <span key={a.id} className={`${isLast ? "current" : ""} ${sign}`}>
+                <span key={a.id} className={classes}>
+                  {isBest ? (
+                    <i className="trail-best" aria-label="최고 점수">★</i>
+                  ) : null}
+                  {prevA ? (
+                    <i className={`trail-delta ${sign}`} aria-label={`${delta >= 0 ? "+" : ""}${delta}점`}>
+                      {delta > 0 ? "↑" : delta < 0 ? "↓" : "·"}
+                      {Math.abs(delta)}
+                    </i>
+                  ) : null}
                   <strong>{a.score}</strong>
-                  <small>
-                    Try {index + 1}
-                    {prevA ? ` · ${delta >= 0 ? "+" : ""}${delta}` : ""}
-                  </small>
+                  <small>{index + 1}번째</small>
+                  {isLast ? <em className="trail-now">지금</em> : null}
                 </span>
               );
             })}
@@ -1170,19 +1171,31 @@ function WritingReview({
 
       {scoreTrail.length > 1 ? (
         <div className="kid-score-trail">
-          <p className="tiny-label">내 도전 기록</p>
+          <p className="tiny-label">👣 내 도전 발자국</p>
           <div>
             {scoreTrail.map((entry, index) => {
               const isLast = index === scoreTrail.length - 1;
               const delta = entry.delta ?? 0;
               const sign = delta > 0 ? "up" : delta < 0 ? "down" : "same";
+              const isBest = entry.score === bestScore;
+              const hasDelta = typeof entry.delta === "number";
+              const classes = [isLast ? "current" : "", sign, isBest ? "best" : ""]
+                .filter(Boolean)
+                .join(" ");
               return (
-                <span key={entry.id} className={`${isLast ? "current" : ""} ${sign}`}>
+                <span key={entry.id} className={classes}>
+                  {isBest ? (
+                    <i className="trail-best" aria-label="최고 점수">★</i>
+                  ) : null}
+                  {hasDelta ? (
+                    <i className={`trail-delta ${sign}`} aria-label={`${delta >= 0 ? "+" : ""}${delta}점`}>
+                      {delta > 0 ? "↑" : delta < 0 ? "↓" : "·"}
+                      {Math.abs(delta)}
+                    </i>
+                  ) : null}
                   <strong>{entry.score}</strong>
-                  <small>
-                    {entry.label}
-                    {typeof entry.delta === "number" ? ` · ${entry.delta >= 0 ? "+" : ""}${entry.delta}` : ""}
-                  </small>
+                  <small>{entry.label}</small>
+                  {isLast ? <em className="trail-now">지금</em> : null}
                 </span>
               );
             })}

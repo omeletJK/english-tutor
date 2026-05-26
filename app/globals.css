@@ -649,7 +649,7 @@ select:focus {
 
 .voice-studio {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 200px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -3766,51 +3766,134 @@ select:focus {
   border-radius: var(--r-md);
   background: var(--surface);
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .kid-score-trail > div {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+  align-items: stretch;
+  gap: 10px;
 }
 
 .kid-score-trail span {
+  position: relative;
   display: grid;
-  min-width: 88px;
-  gap: 2px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
+  justify-items: center;
+  align-content: center;
+  gap: 4px;
+  min-width: 80px;
+  padding: 14px 12px 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
   background: var(--sand);
-}
-
-.kid-score-trail span.current {
-  background: var(--surface);
-  border-color: var(--ink-soft);
+  text-align: center;
+  transition: transform 140ms var(--ease), box-shadow 140ms var(--ease);
 }
 
 .kid-score-trail span.up {
   border-color: var(--moss);
+  background: var(--moss-wash);
 }
 
 .kid-score-trail span.down {
   border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.kid-score-trail span.same {
+  border-color: var(--line-strong);
+}
+
+.kid-score-trail span.best {
+  border-color: var(--gold);
+  background: var(--gold-wash);
+}
+
+.kid-score-trail span.current {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px -6px rgba(20, 16, 8, 0.18);
+  border-width: 2px;
+}
+
+.kid-score-trail span.current.best {
+  border-color: var(--gold-deep);
 }
 
 .kid-score-trail strong {
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .kid-score-trail small {
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.kid-score-trail .trail-best {
+  position: absolute;
+  top: -8px;
+  left: -6px;
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--surface);
+  font-style: normal;
+  font-size: 0.85rem;
+  line-height: 1;
+  box-shadow: 0 2px 4px -1px rgba(164, 122, 77, 0.5);
+}
+
+.kid-score-trail .trail-delta {
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-style: normal;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.kid-score-trail .trail-delta.up {
+  color: var(--moss);
+  border-color: var(--moss);
+}
+
+.kid-score-trail .trail-delta.down {
+  color: var(--accent-deep);
+  border-color: var(--accent);
+}
+
+.kid-score-trail .trail-now {
+  margin-top: 2px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--surface);
+  font-style: normal;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .kid-card {
