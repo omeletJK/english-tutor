@@ -14,15 +14,18 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <main className="login-playground">
       <div className="login-aurora" aria-hidden="true">
+        <span className="aurora-swirl" />
         <span className="aurora-blob aurora-blob-1" />
         <span className="aurora-blob aurora-blob-2" />
         <span className="aurora-blob aurora-blob-3" />
         <span className="aurora-blob aurora-blob-4" />
+        <span className="aurora-blob aurora-blob-5" />
+        <span className="aurora-blob aurora-blob-6" />
         <span className="aurora-grain" />
       </div>
       <form className="login-card" action="/api/session" method="post">
         <div className="login-heading">
-          <PaperPlane size={48} />
+          <PaperPlane size={72} />
           <div>
             <p className="tiny-label">Omelet English</p>
             <h1>Who is reading today?</h1>

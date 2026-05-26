@@ -3020,11 +3020,46 @@ select:focus {
   pointer-events: none;
 }
 
+/* Large conic-gradient layer that slowly rotates — gives the background a
+ * continuous multi-color swirl that the discrete blobs alone cannot. */
+.aurora-swirl {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 220vmax;
+  height: 220vmax;
+  transform: translate(-50%, -50%);
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    #f6c9a6 0deg,
+    #f3a896 55deg,
+    #d99a83 110deg,
+    #c97b6c 160deg,
+    #ead7b0 215deg,
+    #fce4dc 270deg,
+    #e8b7a4 320deg,
+    #f6c9a6 360deg
+  );
+  filter: blur(120px);
+  opacity: 0.55;
+  will-change: transform;
+  animation: aurora-swirl-rotate 42s linear infinite;
+}
+
+@keyframes aurora-swirl-rotate {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
 .aurora-blob {
   position: absolute;
   border-radius: 50%;
   filter: blur(90px);
-  opacity: 0.82;
+  opacity: 0.78;
   will-change: transform;
   animation: aurora-drift 22s cubic-bezier(0.4, 0.0, 0.2, 1) infinite alternate;
 }
@@ -3064,6 +3099,30 @@ select:focus {
   animation-delay: -3s;
 }
 
+/* Two extra blobs near the centre to break up the radial symmetry of the
+ * swirl and add color variety in the area behind the card. */
+.aurora-blob-5 {
+  width: 40vmax;
+  height: 40vmax;
+  top: 35%;
+  left: 20%;
+  background: radial-gradient(circle at 50% 50%, #c2664e 0%, rgba(194, 102, 78, 0) 60%);
+  opacity: 0.42;
+  animation-duration: 28s;
+  animation-delay: -10s;
+}
+
+.aurora-blob-6 {
+  width: 45vmax;
+  height: 45vmax;
+  top: 20%;
+  right: 18%;
+  background: radial-gradient(circle at 50% 50%, #f4dcc3 0%, rgba(244, 220, 195, 0) 65%);
+  opacity: 0.65;
+  animation-duration: 32s;
+  animation-delay: -18s;
+}
+
 /* Very fine grain so the gradients don't look plasticky — overlaid SVG noise. */
 .aurora-grain {
   position: absolute;
@@ -3087,41 +3146,45 @@ select:focus {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .aurora-blob {
+  .aurora-blob,
+  .aurora-swirl {
     animation: none;
   }
 }
 
 .login-card {
   position: relative;
-  width: min(100%, 480px);
+  width: min(100%, 760px);
   display: grid;
-  gap: 14px;
-  padding: 40px 36px;
+  gap: 24px;
+  padding: 60px 56px;
   border: 1px solid rgba(232, 223, 207, 0.85);
-  border-radius: 18px;
+  border-radius: 24px;
   background: rgba(255, 255, 255, 0.78);
   backdrop-filter: blur(24px) saturate(140%);
   -webkit-backdrop-filter: blur(24px) saturate(140%);
   box-shadow:
     0 1px 2px rgba(20, 16, 8, 0.04),
-    0 30px 60px -20px rgba(126, 60, 36, 0.18);
+    0 36px 72px -24px rgba(126, 60, 36, 0.22);
 }
 
 .login-card h1 {
-  font-size: 1.875rem;
+  font-size: 2.6rem;
   letter-spacing: -0.02em;
+  line-height: 1.05;
 }
 
 .login-card .tiny-label {
   color: var(--accent);
+  font-size: 0.95rem;
+  margin-bottom: 10px;
 }
 
 .login-heading {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 8px;
+  gap: 22px;
+  margin-bottom: 14px;
 }
 
 .login-heading svg {
@@ -3143,22 +3206,50 @@ select:focus {
 .quick-login {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 14px;
 }
 
 .quick-login button {
-  min-height: 42px;
+  min-height: 64px;
+  padding: 0 24px;
   border: 1px solid var(--line);
   border-radius: var(--r-pill);
   background: var(--surface);
   color: var(--ink);
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: 1.15rem;
+  transition:
+    border-color 180ms var(--ease),
+    color 180ms var(--ease),
+    background 180ms var(--ease),
+    transform 180ms var(--ease),
+    box-shadow 180ms var(--ease);
 }
 
 .quick-login button:hover {
-  background: var(--sand);
-  border-color: var(--line-strong);
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--surface);
+  transform: translateY(-3px) scale(1.025);
+  box-shadow:
+    0 1px 2px rgba(20, 16, 8, 0.04),
+    0 14px 28px -10px rgba(196, 69, 54, 0.35);
+}
+
+.quick-login button:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow:
+    0 0 0 4px var(--accent-wash),
+    0 14px 28px -10px rgba(196, 69, 54, 0.35);
+}
+
+.quick-login button:active {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow:
+    0 1px 2px rgba(20, 16, 8, 0.06),
+    0 6px 14px -6px rgba(196, 69, 54, 0.4);
 }
 
 .quick-login button:nth-child(2),
@@ -3166,10 +3257,31 @@ select:focus {
   background: var(--surface);
 }
 
+@media (max-width: 720px) {
+  .login-card {
+    padding: 44px 28px;
+    gap: 20px;
+  }
+
+  .login-card h1 {
+    font-size: 2.1rem;
+  }
+
+  .quick-login {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .quick-login button {
+    min-height: 58px;
+    font-size: 1.1rem;
+  }
+}
+
 .form-error {
   margin: 0;
   color: var(--accent-deep);
-  font-size: 0.88rem;
+  font-size: 0.95rem;
   font-weight: 500;
 }
 
