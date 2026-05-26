@@ -13,19 +13,19 @@ type HoverState = {
 
 /* ---------------------------------------------------------------- *
  * Per-day bar chart with the day's try-journey overlaid inside
- * each bar. The bar height = that day's FINAL score. The dots and
- * thin connecting line trace 1차 → 2차 → … → final attempts on that
- * same day, so the kid sees both the trend across days AND the
- * grind inside a single day in one glance.
+ * each bar. The bar height = that day's BEST score (highest of all
+ * attempts). Thin horizontal ticks inside the bar trace each
+ * non-best attempt, so the kid sees both the trend across days AND
+ * the grind inside a single day in one glance.
  * ---------------------------------------------------------------- */
 
 export type DailyTry = { date: string; score: number };
 
-const COL_WIDTH = 64;
-const BAR_WIDTH = 36;
-const PADDING_X = { left: 42, right: 20 };
-const CHART_HEIGHT = 220;
-const PADDING_Y = { top: 28, bottom: 38 };
+const COL_WIDTH = 76;
+const BAR_WIDTH = 44;
+const PADDING_X = { left: 52, right: 24 };
+const CHART_HEIGHT = 260;
+const PADDING_Y = { top: 34, bottom: 52 };
 const INNER_HEIGHT = CHART_HEIGHT - PADDING_Y.top - PADDING_Y.bottom;
 const Y_TICKS = [0, 25, 50, 75, 100];
 
@@ -68,7 +68,7 @@ export function DailyJourneyChart({
 
   const first = days[0];
   const latest = days[days.length - 1];
-  const diff = latest.final - first.final;
+  const diff = latest.best - first.best;
   const diffSign = diff > 0 ? `+${diff}` : `${diff}`;
   const diffTone = diff > 0 ? "var(--moss)" : diff < 0 ? "var(--accent)" : "var(--ink-soft)";
 
@@ -88,16 +88,16 @@ export function DailyJourneyChart({
               fontVariantNumeric: "tabular-nums"
             }}
           >
-            <span style={{ color: "var(--ink-soft)", fontSize: "0.85rem" }}>
-              {first.final} → {latest.final}
+            <span style={{ color: "var(--ink-soft)", fontSize: "1.05rem" }}>
+              {first.best} → {latest.best}
             </span>
-            <span style={{ color: diffTone, fontWeight: 600, fontSize: "0.85rem" }}>
+            <span style={{ color: diffTone, fontWeight: 600, fontSize: "1.05rem" }}>
               {diffSign}
             </span>
           </div>
         ) : (
-          <span style={{ color: "var(--ink-soft)", fontSize: "0.85rem" }}>
-            첫 기록 {latest.final}점
+          <span style={{ color: "var(--ink-soft)", fontSize: "1.05rem" }}>
+            첫 기록 {latest.best}점
           </span>
         )}
       </div>
@@ -130,10 +130,11 @@ export function DailyJourneyChart({
                   />
                   <text
                     x={PADDING_X.left - 10}
-                    y={y + 3}
+                    y={y + 5}
                     textAnchor="end"
-                    fontSize="10"
-                    fill="var(--ink-faint)"
+                    fontSize="14"
+                    fontWeight="500"
+                    fill="var(--ink-soft)"
                   >
                     {tick}
                   </text>
@@ -143,12 +144,20 @@ export function DailyJourneyChart({
 
             {days.map((day, i) => {
               const cx = xCenter(i);
-              const finalY = yForScore(day.final);
+              const bestY = yForScore(day.best);
               const barX = cx - BAR_WIDTH / 2;
-              const barHeight = Math.max(baseY - finalY, 2);
+              const barHeight = Math.max(baseY - bestY, 2);
               const tickX1 = barX + 2;
               const tickX2 = barX + BAR_WIDTH - 2;
               const isHovered = hover?.date === day.date;
+              let bestSkipped = false;
+              const otherScores = day.scores.filter((s) => {
+                if (s === day.best && !bestSkipped) {
+                  bestSkipped = true;
+                  return false;
+                }
+                return true;
+              });
 
               function showTooltip(event: React.MouseEvent<SVGRectElement>) {
                 setHover({
@@ -169,54 +178,50 @@ export function DailyJourneyChart({
                 <g key={day.date}>
                   <rect
                     x={barX}
-                    y={finalY}
+                    y={bestY}
                     width={BAR_WIDTH}
                     height={barHeight}
                     rx={6}
                     fill="var(--accent)"
                     opacity={isHovered ? 0.28 : 0.16}
                   >
-                    <title>{`${formatTooltipDate(day.date)} · 최종 ${day.final}점 · ${day.scores.length}회 시도`}</title>
+                    <title>{`${formatTooltipDate(day.date)} · 최고 ${day.best}점 · 최종 ${day.final}점 · ${day.scores.length}회 시도`}</title>
                   </rect>
 
-                  {day.scores.length > 1
-                    ? day.scores.slice(0, -1).map((s, idx) => {
-                        const isBest = s === day.best;
-                        return (
-                          <line
-                            key={`try-${idx}`}
-                            x1={tickX1}
-                            x2={tickX2}
-                            y1={yForScore(s)}
-                            y2={yForScore(s)}
-                            stroke={isBest ? "var(--moss)" : "var(--accent)"}
-                            strokeWidth={1.5}
-                            opacity={isBest ? 0.9 : 0.55}
-                            pointerEvents="none"
-                          />
-                        );
-                      })
-                    : null}
+                  {otherScores.map((s, idx) => (
+                    <line
+                      key={`try-${idx}`}
+                      x1={tickX1}
+                      x2={tickX2}
+                      y1={yForScore(s)}
+                      y2={yForScore(s)}
+                      stroke="var(--accent)"
+                      strokeWidth={1.5}
+                      opacity={0.55}
+                      pointerEvents="none"
+                    />
+                  ))}
 
                   <text
                     x={cx}
-                    y={finalY - 8}
+                    y={bestY - 10}
                     textAnchor="middle"
-                    fontSize="11"
-                    fontWeight="600"
+                    fontSize="17"
+                    fontWeight="700"
                     fill="var(--ink)"
                     pointerEvents="none"
                   >
-                    {day.final}
+                    {day.best}
                   </text>
 
                   {day.scores.length > 1 ? (
                     <text
                       x={cx}
-                      y={baseY + 14}
+                      y={baseY + 20}
                       textAnchor="middle"
-                      fontSize="9"
-                      fill="var(--ink-faint)"
+                      fontSize="13"
+                      fontWeight="500"
+                      fill="var(--ink-soft)"
                       pointerEvents="none"
                     >
                       {day.scores.length}회
@@ -242,10 +247,11 @@ export function DailyJourneyChart({
               <text
                 key={`${day.date}-label`}
                 x={xCenter(i)}
-                y={CHART_HEIGHT - 6}
+                y={CHART_HEIGHT - 8}
                 textAnchor="middle"
-                fontSize="11"
-                fill="var(--ink-soft)"
+                fontSize="15"
+                fontWeight="500"
+                fill="var(--ink)"
               >
                 {formatTickDate(day.date)}
               </text>

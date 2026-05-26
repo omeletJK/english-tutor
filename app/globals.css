@@ -1683,15 +1683,15 @@ select:focus {
 
 .skill-token strong {
   font-family: var(--font-display);
-  font-weight: 500;
-  font-size: 0.95rem;
+  font-weight: 600;
+  font-size: 1.2rem;
   letter-spacing: -0.01em;
   color: var(--ink);
 }
 
 .skill-token span {
   color: var(--ink-soft);
-  font-size: 0.82rem;
+  font-size: 1rem;
   font-weight: 500;
 }
 
@@ -3491,7 +3491,8 @@ select:focus {
 
 .score-history-caption {
   color: var(--ink-soft);
-  font-size: 0.85rem;
+  font-size: 1rem;
+  line-height: 1.55;
   margin: 0;
 }
 
