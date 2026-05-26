@@ -747,13 +747,21 @@ select:focus {
 }
 
 .record-actions {
-  display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
-  gap: 14px;
+  display: flex;
   align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
 }
 
-.record-actions p,
+.record-actions p {
+  flex: 1 1 240px;
+  min-width: 0;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
 .voice-error {
   color: var(--ink-soft);
   font-size: 0.9rem;
@@ -986,13 +994,18 @@ select:focus {
 .record-buttons {
   display: flex;
   align-items: stretch;
-  gap: 8px;
-  width: 100%;
-  margin-top: 14px;
+  gap: 10px;
+  flex: 0 0 auto;
+  margin-top: 0;
 }
 
 .record-buttons .quest-submit {
-  flex: 1;
+  flex: 0 0 auto;
+  min-width: 168px;
+  min-height: 56px;
+  padding: 0 24px;
+  font-size: 1rem;
+  white-space: nowrap;
   margin-top: 0;
 }
 
@@ -1001,8 +1014,8 @@ select:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  min-height: 48px;
+  width: 56px;
+  min-height: 56px;
   padding: 0;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-pill);
@@ -1197,9 +1210,13 @@ select:focus {
   line-height: 1.5;
 }
 
-.editor-action-panel .quest-submit,
-.record-actions .quest-submit {
+.editor-action-panel .quest-submit {
   width: 100%;
+  margin-top: 0;
+}
+
+.record-actions .quest-submit {
+  width: auto;
   margin-top: 0;
 }
 
