@@ -3001,22 +3001,111 @@ select:focus {
 
 /* ---------- Login ---------- */
 .login-playground {
+  position: relative;
   display: grid;
   min-height: 100vh;
   place-items: center;
   padding: 28px;
   background: var(--bg);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Editorial aurora — slow-drifting color washes that read as an abstract
+ * artwork behind the login card. Pure CSS, no image asset. */
+.login-aurora {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.82;
+  will-change: transform;
+  animation: aurora-drift 22s cubic-bezier(0.4, 0.0, 0.2, 1) infinite alternate;
+}
+
+.aurora-blob-1 {
+  width: 64vmax;
+  height: 64vmax;
+  top: -22vmax;
+  left: -18vmax;
+  background: radial-gradient(circle at 50% 50%, #f6c9a6 0%, rgba(246, 201, 166, 0) 65%);
+}
+
+.aurora-blob-2 {
+  width: 56vmax;
+  height: 56vmax;
+  top: -14vmax;
+  right: -18vmax;
+  background: radial-gradient(circle at 50% 50%, #f3a896 0%, rgba(243, 168, 150, 0) 65%);
+  animation-delay: -7s;
+}
+
+.aurora-blob-3 {
+  width: 60vmax;
+  height: 60vmax;
+  bottom: -22vmax;
+  left: -14vmax;
+  background: radial-gradient(circle at 50% 50%, #ead7b0 0%, rgba(234, 215, 176, 0) 65%);
+  animation-delay: -14s;
+}
+
+.aurora-blob-4 {
+  width: 50vmax;
+  height: 50vmax;
+  bottom: -16vmax;
+  right: -10vmax;
+  background: radial-gradient(circle at 50% 50%, #d99a83 0%, rgba(217, 154, 131, 0) 65%);
+  animation-delay: -3s;
+}
+
+/* Very fine grain so the gradients don't look plasticky — overlaid SVG noise. */
+.aurora-grain {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1  0 0 0 0 0.08  0 0 0 0 0.04  0 0 0 0.5 0'/></filter><rect width='240' height='240' filter='url(%23n)' opacity='0.55'/></svg>");
+  opacity: 0.18;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+@keyframes aurora-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(3vmax, -2vmax, 0) scale(1.06);
+  }
+  100% {
+    transform: translate3d(-2vmax, 3vmax, 0) scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob {
+    animation: none;
+  }
 }
 
 .login-card {
-  width: min(100%, 440px);
+  position: relative;
+  width: min(100%, 480px);
   display: grid;
   gap: 14px;
-  padding: 36px 32px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  background: var(--surface);
-  box-shadow: var(--shadow-paper);
+  padding: 40px 36px;
+  border: 1px solid rgba(232, 223, 207, 0.85);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  box-shadow:
+    0 1px 2px rgba(20, 16, 8, 0.04),
+    0 30px 60px -20px rgba(126, 60, 36, 0.18);
 }
 
 .login-card h1 {
