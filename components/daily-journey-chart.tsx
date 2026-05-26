@@ -66,12 +66,6 @@ export function DailyJourneyChart({
   const baseY = yForScore(0);
   const xCenter = (i: number) => PADDING_X.left + i * COL_WIDTH + COL_WIDTH / 2;
 
-  const first = days[0];
-  const latest = days[days.length - 1];
-  const diff = latest.best - first.best;
-  const diffSign = diff > 0 ? `+${diff}` : `${diff}`;
-  const diffTone = diff > 0 ? "var(--moss)" : diff < 0 ? "var(--accent)" : "var(--ink-soft)";
-
   return (
     <div className="score-history">
       <div className="score-history-head">
@@ -79,27 +73,6 @@ export function DailyJourneyChart({
           <p className="tiny-label">Trend</p>
           <h3>{title}</h3>
         </div>
-        {days.length > 1 ? (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontVariantNumeric: "tabular-nums"
-            }}
-          >
-            <span style={{ color: "var(--ink-soft)", fontSize: "1.05rem" }}>
-              {first.best} → {latest.best}
-            </span>
-            <span style={{ color: diffTone, fontWeight: 600, fontSize: "1.05rem" }}>
-              {diffSign}
-            </span>
-          </div>
-        ) : (
-          <span style={{ color: "var(--ink-soft)", fontSize: "1.05rem" }}>
-            첫 기록 {latest.best}점
-          </span>
-        )}
       </div>
 
       <div
