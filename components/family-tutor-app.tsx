@@ -740,30 +740,40 @@ function PlayView({
                 </div>
               </div>
               <div className="record-actions">
-                {recordingState === "recording" ? (
-                  <div className="record-buttons">
-                    <button className="quest-submit stop" onClick={stopRecording} type="button">
-                      Stop recording
-                    </button>
-                    <button
-                      className="record-reset"
-                      onClick={cancelRecording}
-                      type="button"
-                      aria-label="다시 시작"
-                      title="녹음한 내용을 버리고 처음부터 다시"
-                    >
-                      <RotateCcw size={18} />
-                    </button>
-                  </div>
-                ) : (
-                  <button className="quest-submit" onClick={startRecording} type="button" disabled={recordingState === "evaluating"}>
+                <div className="record-buttons">
+                  <button
+                    className="quest-submit"
+                    onClick={startRecording}
+                    type="button"
+                    disabled={recordingState !== "idle"}
+                  >
                     Start recording
                   </button>
-                )}
+                  <button
+                    className="quest-submit stop"
+                    onClick={stopRecording}
+                    type="button"
+                    disabled={recordingState !== "recording"}
+                  >
+                    Stop recording
+                  </button>
+                  <button
+                    className="record-reset"
+                    onClick={cancelRecording}
+                    type="button"
+                    disabled={recordingState !== "recording"}
+                    aria-label="다시 시작"
+                    title="녹음한 내용을 버리고 처음부터 다시"
+                  >
+                    <RotateCcw size={18} />
+                  </button>
+                </div>
                 <p>
                   {recordingState === "recording"
-                    ? "실수했으면 '다시 시작'을 눌러요. 멈춰야 평가가 시작돼요."
-                    : "녹음이 끝나면 평가 후 같은 주제로 다시 말합니다."}
+                    ? "실수했으면 ↻ 로 다시 시작, 다 말했으면 Stop recording 으로 평가받기."
+                    : recordingState === "evaluating"
+                      ? "평가 중이에요... 잠시만요."
+                      : "준비되면 Start recording 을 눌러 영어로 답해보세요."}
                 </p>
               </div>
             </div>
