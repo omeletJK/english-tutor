@@ -475,7 +475,6 @@ function SettingsSection({
   const [gradeKey, setGradeKey] = useState<GradeKey>(
     gradeKeyFromUsLabel(student.student.usGradeLevel)
   );
-  const [levelDescription, setLevelDescription] = useState(student.student.levelDescription);
   const [status, setStatus] = useState<SaveStatus>("idle");
 
   const meta = useMemo(
@@ -494,7 +493,7 @@ function SettingsSection({
           studentId: student.student.id,
           usGradeLevel: meta.usLabel,
           cefrLevel: meta.cefrEquivalent,
-          levelDescription: levelDescription.trim()
+          levelDescription: ""
         })
       });
       if (!response.ok) {
@@ -532,14 +531,6 @@ function SettingsSection({
               </option>
             ))}
           </select>
-        </label>
-        <label>
-          <span>학습 메모 (선택)</span>
-          <input
-            value={levelDescription}
-            onChange={(event) => setLevelDescription(event.target.value)}
-            placeholder="예) 글쓰기보다 말하기 선호, 동물·우주 주제에 관심"
-          />
         </label>
       </div>
       <p className="settings-note">
