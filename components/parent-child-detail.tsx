@@ -1,12 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type {
   DashboardData,
   RewardRule,
   StudentDashboard
 } from "@/lib/types";
+import {
+  gradeKeyFromUsLabel,
+  type GradeKey,
+  type GradeMeta
+} from "@/lib/curriculum-types";
 import { DailyJourneyChart } from "@/components/daily-journey-chart";
 import {
   SpeakingHistorySection,
@@ -19,6 +25,7 @@ import { SessionDetailModal } from "@/components/session-detail-modal";
 type ParentChildDetailProps = {
   dashboard: DashboardData;
   student: StudentDashboard;
+  gradeOptions: GradeMeta[];
 };
 
 type Section = "overview" | "speaking" | "writing" | "rewards" | "settings";
@@ -31,7 +38,7 @@ const SECTIONS: Array<{ key: Section; label: string }> = [
   { key: "settings", label: "Settings" }
 ];
 
-export function ParentChildDetail({ student }: ParentChildDetailProps) {
+export function ParentChildDetail({ student, gradeOptions }: ParentChildDetailProps) {
   const [section, setSection] = useState<Section>("overview");
 
   async function logOut() {
@@ -72,7 +79,9 @@ export function ParentChildDetail({ student }: ParentChildDetailProps) {
         {section === "speaking" ? <SpeakingSection student={student} /> : null}
         {section === "writing" ? <WritingSection student={student} /> : null}
         {section === "rewards" ? <RewardsSection student={student} /> : null}
-        {section === "settings" ? <SettingsSection student={student} /> : null}
+        {section === "settings" ? (
+          <SettingsSection student={student} gradeOptions={gradeOptions} />
+        ) : null}
       </div>
     </main>
   );
@@ -453,9 +462,54 @@ function RewardsSection({ student }: { student: StudentDashboard }) {
 }
 
 /* ---------- Settings ---------- */
-function SettingsSection({ student }: { student: StudentDashboard }) {
-  const [usGradeLevel, setUsGradeLevel] = useState(student.student.usGradeLevel);
+type SaveStatus = "idle" | "saving" | "saved" | "error";
+
+function SettingsSection({
+  student,
+  gradeOptions
+}: {
+  student: StudentDashboard;
+  gradeOptions: GradeMeta[];
+}) {
+  const router = useRouter();
+  const [gradeKey, setGradeKey] = useState<GradeKey>(
+    gradeKeyFromUsLabel(student.student.usGradeLevel)
+  );
   const [levelDescription, setLevelDescription] = useState(student.student.levelDescription);
+  const [status, setStatus] = useState<SaveStatus>("idle");
+
+  const meta = useMemo(
+    () => gradeOptions.find((opt) => opt.key === gradeKey) ?? gradeOptions[0],
+    [gradeOptions, gradeKey]
+  );
+
+  async function handleSave() {
+    if (status === "saving") return;
+    setStatus("saving");
+    try {
+      const response = await fetch("/api/student-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId: student.student.id,
+          usGradeLevel: meta.usLabel,
+          cefrLevel: meta.cefrEquivalent,
+          levelDescription: levelDescription.trim()
+        })
+      });
+      if (!response.ok) {
+        setStatus("error");
+        return;
+      }
+      setStatus("saved");
+      router.refresh();
+      window.setTimeout(() => {
+        setStatus((current) => (current === "saved" ? "idle" : current));
+      }, 2000);
+    } catch {
+      setStatus("error");
+    }
+  }
 
   return (
     <section className="quest-board settings-panel-wrapper">
@@ -467,20 +521,48 @@ function SettingsSection({ student }: { student: StudentDashboard }) {
       </div>
       <div className="settings-grid">
         <label>
-          <span>US grade level</span>
-          <input value={usGradeLevel} onChange={(event) => setUsGradeLevel(event.target.value)} />
+          <span>목표 학년 (US grade)</span>
+          <select
+            value={gradeKey}
+            onChange={(event) => setGradeKey(event.target.value as GradeKey)}
+          >
+            {gradeOptions.map((opt) => (
+              <option key={opt.key} value={opt.key}>
+                {opt.optionLabel}
+              </option>
+            ))}
+          </select>
         </label>
         <label>
-          <span>Description</span>
+          <span>학습 메모 (선택)</span>
           <input
             value={levelDescription}
             onChange={(event) => setLevelDescription(event.target.value)}
+            placeholder="예) 글쓰기보다 말하기 선호, 동물·우주 주제에 관심"
           />
         </label>
       </div>
       <p className="settings-note">
-        지금은 입력만 받으며, 저장 API는 별건으로 연결됩니다. 자녀별 레벨이 학습 과제 생성에 반영됩니다.
+        <strong>{meta.stageLabel}.</strong> {meta.oneLine} (CEFR {meta.cefrEquivalent} 상응)
       </p>
+      <p className="settings-note">
+        이 학년이 자녀의 <strong>목표 수준</strong>으로 적용되어, Speaking·Writing 과제와 평가 기준이 해당 학년에 맞춰 보정됩니다.
+      </p>
+      <div className="settings-actions">
+        <button
+          className="quest-submit"
+          onClick={handleSave}
+          disabled={status === "saving"}
+          type="button"
+        >
+          {status === "saving" ? "저장 중…" : status === "saved" ? "저장됨" : "저장"}
+        </button>
+        {status === "error" ? (
+          <span className="settings-note" style={{ color: "var(--accent)" }}>
+            저장에 실패했습니다. 잠시 후 다시 시도해주세요.
+          </span>
+        ) : null}
+      </div>
     </section>
   );
 }

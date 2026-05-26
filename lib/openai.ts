@@ -1,3 +1,8 @@
+import {
+  curriculumSnippet,
+  gradeMetaFromLabel,
+  type GradeMeta
+} from "@/lib/curriculum";
 import { demoStudents } from "@/lib/demo-data";
 import type { StudentContext } from "@/lib/task-generator";
 import type {
@@ -9,6 +14,7 @@ import type {
   SkillState,
   SpeakingAttempt,
   SpeakingAttemptResponse,
+  Student,
   WritingEvaluationDetails,
   WritingRevisionComparison
 } from "@/lib/types";
@@ -32,6 +38,7 @@ type SpeakingEvaluationInput = {
   transcript: string;
   attemptNumber: number;
   previousScore?: number;
+  student?: Student;
 };
 
 function evaluationModel() {
@@ -44,6 +51,12 @@ export async function evaluateLearningEvent(input: EvaluationInput): Promise<Lea
   }
 
   const isWriting = input.mode === "writing";
+  const gradeMeta: GradeMeta | null = input.studentContext
+    ? gradeMetaFromLabel(input.studentContext.student.usGradeLevel)
+    : null;
+  const curriculumStandard = gradeMeta
+    ? curriculumSnippet(gradeMeta.key, isWriting ? "writing" : "speaking")
+    : "";
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -56,7 +69,8 @@ export async function evaluateLearningEvent(input: EvaluationInput): Promise<Lea
         (isWriting
           ? "You are an exceptional English writing teacher for a school-age child. Return only valid JSON matching the requested shape. Use the provided student_context (CEFR level, US grade equivalent, skill states, recent observations) to calibrate the rigor of your feedback and the difficulty of the suggested next task. Give specific Korean feedback on structure, logic, sentence quality, grammar, vocabulary, expression, and coherence. Provide sentence-level corrections grounded in what the child actually wrote. If this is a revision, compare it with the previous draft and explain exactly what improved and what still needs work. The suggested nextTask must build on the student's current skill states and observed gaps, not generic prompts."
           : "You are a warm but rigorous English tutor for a school-age child. Return only valid JSON matching the requested shape. Use the provided student_context (CEFR level, US grade equivalent, skill states, recent observations) to calibrate the next task and feedback. Keep Korean parent notes concise and child feedback encouraging but specific. The suggested nextTask must build on the student's current skill states and observed gaps, not generic prompts.") +
-        " SCORING RULE: Calibrate scores so that an on-level, age-appropriate answer scores around 70/100. Reserve 80+ for clearly strong answers (well-structured, accurate, with elaborated reasoning), and 60- for answers that miss the task or have many basic errors. Individual rubric metrics should also average close to the overall score (within ±5 of it).",
+        " SCORING RULE: Calibrate scores so that an on-level, age-appropriate answer scores around 70/100. Reserve 80+ for clearly strong answers (well-structured, accurate, with elaborated reasoning), and 60- for answers that miss the task or have many basic errors. Individual rubric metrics should also average close to the overall score (within ±5 of it)." +
+        " GRADE CALIBRATION: student_context.curriculumStandard describes CCSS-aligned expectations for the student's target US grade. Evaluate sentence complexity, vocabulary range, and reasoning depth against that standard. An answer that meets the listed grade expectations sits around 70; clearly above 80+; clearly below 60-. The student_context.levelDescription is a secondary signal — grade standard wins on conflicts. Do NOT cite CCSS codes or grade numbers back to the student in feedbackForChild; keep that field warm and specific in Korean.",
       input: [
         {
           role: "user",
@@ -74,6 +88,9 @@ export async function evaluateLearningEvent(input: EvaluationInput): Promise<Lea
                       displayName: input.studentContext.student.displayName,
                       cefrLevel: input.studentContext.student.cefrLevel,
                       usGradeLevel: input.studentContext.student.usGradeLevel,
+                      stageLabel: gradeMeta?.stageLabel,
+                      schoolBand: gradeMeta?.schoolBand,
+                      curriculumStandard,
                       levelDescription: input.studentContext.student.levelDescription,
                       skillStates: input.studentContext.skillStates.map((s) => ({
                         skill: s.skill,
@@ -208,6 +225,7 @@ export async function evaluateSpeakingAttempt(input: {
   topic: string;
   attemptNumber: number;
   previousScore?: number;
+  student?: Student;
 }): Promise<SpeakingAttemptResponse> {
   const transcript = input.audio ? await transcribeAudio(input.audio, input.topic) : fallbackTranscript(input.topic);
   const result = process.env.OPENAI_API_KEY
@@ -249,6 +267,10 @@ async function transcribeAudio(audio: File, topic: string) {
 }
 
 async function evaluateSpeakingTranscript(input: SpeakingEvaluationInput): Promise<SpeakingAttemptResponse> {
+  const gradeMeta: GradeMeta | null = input.student
+    ? gradeMetaFromLabel(input.student.usGradeLevel)
+    : null;
+  const curriculumStandard = gradeMeta ? curriculumSnippet(gradeMeta.key, "speaking") : "";
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -258,7 +280,7 @@ async function evaluateSpeakingTranscript(input: SpeakingEvaluationInput): Promi
     body: JSON.stringify({
       model: evaluationModel(),
       instructions:
-        "You are an English speaking coach for a child. Return only valid JSON. Evaluate kindly but rigorously. Provide Korean feedback for parent/child. Reference sentences must be improved versions of what the child actually tried to say, anchored to the given topic and transcript. Preserve the child's intended meaning, do not introduce unrelated content, and do not treat reference sentences as standalone repeat-after-me tests. The child will use them to re-record the full answer. SCORING RULE: Calibrate so an on-level, age-appropriate spoken answer scores around 70/100. Reserve 80+ for clearly strong takes (fluent, accurate, with developed reasoning); 60- for answers that miss the topic or have many basic errors. Individual rubric metrics should also average close to the overall score (within ±5).",
+        "You are an English speaking coach for a child. Return only valid JSON. Evaluate kindly but rigorously. Provide Korean feedback for parent/child. Reference sentences must be improved versions of what the child actually tried to say, anchored to the given topic and transcript. Preserve the child's intended meaning, do not introduce unrelated content, and do not treat reference sentences as standalone repeat-after-me tests. The child will use them to re-record the full answer. SCORING RULE: Calibrate so an on-level, age-appropriate spoken answer scores around 70/100. Reserve 80+ for clearly strong takes (fluent, accurate, with developed reasoning); 60- for answers that miss the topic or have many basic errors. Individual rubric metrics should also average close to the overall score (within ±5). GRADE CALIBRATION: student_context.curriculumStandard describes CCSS-aligned expectations for the student's target US grade. Evaluate fluency, sentence complexity, vocabulary range, and reasoning depth against that standard. Meeting it sits around 70; clearly above 80+; clearly below 60-. Do NOT cite CCSS codes or grade numbers back to the student in any Korean output.",
       input: [
         {
           role: "user",
@@ -270,6 +292,17 @@ async function evaluateSpeakingTranscript(input: SpeakingEvaluationInput): Promi
                 transcript: input.transcript,
                 attempt_number: input.attemptNumber,
                 previous_score: input.previousScore,
+                student_context: input.student
+                  ? {
+                      displayName: input.student.displayName,
+                      cefrLevel: input.student.cefrLevel,
+                      usGradeLevel: input.student.usGradeLevel,
+                      stageLabel: gradeMeta?.stageLabel,
+                      schoolBand: gradeMeta?.schoolBand,
+                      curriculumStandard,
+                      levelDescription: input.student.levelDescription
+                    }
+                  : undefined,
                 reference_sentence_rules: [
                   "Base every improved sentence on the transcript and topic.",
                   "Keep the same topic, opinion, place, event, or example the child mentioned.",
@@ -913,7 +946,8 @@ export async function summarizeStudentDevelopment(input: StudentDevelopmentInput
                 student: {
                   name: input.displayName,
                   cefr: input.cefrLevel,
-                  grade: input.usGradeLevel
+                  grade: input.usGradeLevel,
+                  stage: gradeMetaFromLabel(input.usGradeLevel).stageLabel
                 },
                 observations: input.observations.map((entry) => ({
                   skill: entry.skill,

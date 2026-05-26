@@ -2976,6 +2976,13 @@ select:focus {
   line-height: 1.5;
 }
 
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 760px) {
   .overview-row {
     grid-template-columns: 1fr;

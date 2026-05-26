@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { ParentChildDetail } from "@/components/parent-child-detail";
 import { assertFamilySession } from "@/lib/auth";
+import { getGradeOptions } from "@/lib/curriculum";
 import { loadDashboardData } from "@/lib/dashboard";
 
 type ParentChildPageProps = {
@@ -20,5 +21,11 @@ export default async function ParentChildPage({ params }: ParentChildPageProps) 
     notFound();
   }
 
-  return <ParentChildDetail dashboard={dashboard} student={student} />;
+  return (
+    <ParentChildDetail
+      dashboard={dashboard}
+      student={student}
+      gradeOptions={getGradeOptions()}
+    />
+  );
 }

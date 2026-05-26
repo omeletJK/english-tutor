@@ -1,3 +1,4 @@
+import { curriculumSnippet, gradeMetaFromLabel } from "@/lib/curriculum";
 import type { DailyTask, Observation, SkillState, Student, TaskMode } from "@/lib/types";
 
 export type StudentContext = {
@@ -56,6 +57,8 @@ function evaluationModel() {
 async function callOpenAIForTask(input: GenerateInput): Promise<DailyTask> {
   const { mode, context } = input;
   const { student, skillStates, recentObservations } = context;
+  const gradeMeta = gradeMetaFromLabel(student.usGradeLevel);
+  const curriculumStandard = curriculumSnippet(gradeMeta.key, mode);
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -95,7 +98,10 @@ async function callOpenAIForTask(input: GenerateInput): Promise<DailyTask> {
                   displayName: student.displayName,
                   cefrLevel: student.cefrLevel,
                   usGradeLevel: student.usGradeLevel,
-                  levelDescription: student.levelDescription
+                  schoolBand: gradeMeta.schoolBand,
+                  stageLabel: gradeMeta.stageLabel,
+                  levelDescription: student.levelDescription,
+                  curriculumStandard
                 },
                 skillStates: skillStates.map((s) => ({
                   skill: s.skill,
@@ -116,6 +122,7 @@ async function callOpenAIForTask(input: GenerateInput): Promise<DailyTask> {
                   "Speaking and writing tasks for the same student MUST differ in topic and cognitive demand. Do not mirror them. If this is a writing task, do not produce an opinion question that would also work verbally — pick a topic that genuinely benefits from being written out.",
                   "Match the student's CEFR level precisely. A1 ≈ very simple personal/concrete; A2 ≈ familiar topics with reasons; B1 ≈ opinions and short arguments; B2+ ≈ abstract or comparative analysis.",
                   "Match the student's US grade equivalent. A Grade 5 student is 10-11 years old — do NOT use Grade 1 sentence frames. A Grade 7+ student is 12+ — they can handle opinions and hypotheticals.",
+                  "Calibrate the prompt's cognitive load to student.curriculumStandard (CCSS-aligned grade expectations). Do not invent expectations beyond the listed grade; do not soften below it. Do not cite standard codes back to the student.",
                   "Use the student's recent observations and interests as topic seeds. Avoid repeating last week's topics.",
                   "Target at most two skills, and they must appear in targetSkills as snake_case.",
                   "Korean generatedReason must reference a specific skill_state or observation that justifies this task today.",
@@ -184,7 +191,10 @@ function normalizeGeneratedTask(parsed: any, input: GenerateInput): DailyTask {
     generatedReason:
       typeof parsed.generatedReason === "string" && parsed.generatedReason.trim()
         ? parsed.generatedReason.trim()
-        : `${input.context.student.displayName} 학생의 현재 ${input.context.student.cefrLevel} 단계에 맞춘 ${input.mode === "speaking" ? "말하기" : "쓰기"} 과제입니다.`,
+        : (() => {
+            const meta = gradeMetaFromLabel(input.context.student.usGradeLevel);
+            return `${input.context.student.displayName} 학생의 ${meta.stageLabel}(CEFR ${meta.cefrEquivalent})에 맞춘 ${input.mode === "speaking" ? "말하기" : "쓰기"} 과제입니다.`;
+          })(),
     successCriteria: successCriteria.length ? successCriteria : defaultSuccessCriteria(input.mode)
   };
 }
@@ -353,8 +363,9 @@ function extractTopicSeed(claim: string): string | null {
 
 function buildFallbackReason(args: { student: Student; weakest: SkillState | null }) {
   const { student, weakest } = args;
+  const meta = gradeMetaFromLabel(student.usGradeLevel);
   if (weakest) {
-    return `${student.displayName} 학생의 ${weakest.skill} 점수가 ${weakest.score}점이라 해당 영역을 강화하는 과제로 선택했습니다.`;
+    return `${student.displayName} 학생의 ${weakest.skill} 점수가 ${weakest.score}점이라 ${meta.stageLabel}(CEFR ${meta.cefrEquivalent}) 기준으로 해당 영역을 강화하는 과제로 선택했습니다.`;
   }
-  return `${student.displayName} 학생의 ${student.cefrLevel} 수준에 맞춘 일일 과제입니다.`;
+  return `${student.displayName} 학생의 ${meta.stageLabel}(CEFR ${meta.cefrEquivalent})에 맞춘 일일 과제입니다.`;
 }

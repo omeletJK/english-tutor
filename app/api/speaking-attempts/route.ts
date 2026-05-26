@@ -28,7 +28,8 @@ export async function POST(request: Request) {
     taskId,
     topic,
     attemptNumber,
-    previousScore
+    previousScore,
+    student
   });
 
   const supabase = getSupabaseAdmin();
