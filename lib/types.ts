@@ -122,8 +122,7 @@ export type RewardRule = {
   description: string;
   triggerType: "attendance_count" | "score_growth";
   targetValue: number;
-  rewardItem: string;
-  currentValue: number;
+  rewardAmount: number;
   status: "active" | "completed" | "paused";
 };
 
@@ -144,6 +143,14 @@ export type ProgressPoint = {
   confidence: number;
 };
 
+export type RewardLedgerItem = {
+  id: string;
+  amount: number;
+  reason: string;
+  sourceType: "daily_task" | "skill_milestone" | "parent_adjustment";
+  createdAt: string;
+};
+
 export type StudentDashboard = {
   student: Student;
   todayTask: DailyTask;
@@ -157,6 +164,8 @@ export type StudentDashboard = {
   speakingAttempts: SpeakingAttempt[];
   memoryNotes: MemoryNote[];
   rewardRules: RewardRule[];
+  rewardBalance: number;
+  rewardLedger: RewardLedgerItem[];
   weeklySummary: string;
 };
 

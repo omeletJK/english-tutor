@@ -301,7 +301,7 @@ function RewardsSection({ student }: { student: StudentDashboard }) {
   const [description, setDescription] = useState("");
   const [triggerType, setTriggerType] = useState<RewardRule["triggerType"]>("attendance_count");
   const [targetValue, setTargetValue] = useState("");
-  const [rewardItem, setRewardItem] = useState("");
+  const [rewardAmount, setRewardAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   function resetForm() {
@@ -309,21 +309,16 @@ function RewardsSection({ student }: { student: StudentDashboard }) {
     setDescription("");
     setTriggerType("attendance_count");
     setTargetValue("");
-    setRewardItem("");
+    setRewardAmount("");
   }
 
   async function handleAddRule() {
-    if (!title.trim() || !targetValue || !rewardItem.trim() || submitting) {
+    if (!title.trim() || !targetValue || !rewardAmount || submitting) {
       return;
     }
 
     setSubmitting(true);
     try {
-      const currentValue =
-        triggerType === "attendance_count"
-          ? student.lessonHistory.length
-          : student.evaluationSnapshots.at(-1)?.overallScore ?? 0;
-
       const response = await fetch("/api/reward-rules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -333,8 +328,7 @@ function RewardsSection({ student }: { student: StudentDashboard }) {
           description: description.trim(),
           triggerType,
           targetValue: Number(targetValue),
-          currentValue,
-          rewardItem: rewardItem.trim()
+          rewardAmount: Number(rewardAmount)
         })
       });
 
@@ -346,8 +340,7 @@ function RewardsSection({ student }: { student: StudentDashboard }) {
             description: description.trim(),
             triggerType,
             targetValue: Number(targetValue),
-            currentValue,
-            rewardItem: rewardItem.trim(),
+            rewardAmount: Number(rewardAmount),
             status: "active"
           };
 
@@ -366,31 +359,21 @@ function RewardsSection({ student }: { student: StudentDashboard }) {
           <p className="empty-note">아직 등록된 리워드가 없습니다.</p>
         ) : (
           <ul className="reward-rule-cards">
-            {rules.map((rule) => {
-              const progress = Math.min(100, Math.round((rule.currentValue / rule.targetValue) * 100));
-              return (
-                <li key={rule.id}>
-                  <div className="reward-rule-card-head">
-                    <div>
-                      <strong>{rule.title}</strong>
-                      {rule.description ? <span className="rule-description">{rule.description}</span> : null}
-                    </div>
-                    <span className="reward-item-pill">🎁 {rule.rewardItem}</span>
+            {rules.map((rule) => (
+              <li key={rule.id}>
+                <div className="reward-rule-card-head">
+                  <div>
+                    <strong>{rule.title}</strong>
+                    {rule.description ? <span className="rule-description">{rule.description}</span> : null}
                   </div>
-                  <div className="reward-rule-card-stats">
-                    <span>
-                      {rule.triggerType === "attendance_count" ? "출석 성실도" : "종합 점수"}
-                    </span>
-                    <span>
-                      현재 {rule.currentValue} / 목표 {rule.targetValue}
-                    </span>
-                  </div>
-                  <div className="meter">
-                    <i style={{ width: `${progress}%` }} />
-                  </div>
-                </li>
-              );
-            })}
+                  <span className="reward-item-pill">+{rule.rewardAmount.toLocaleString("ko-KR")}원</span>
+                </div>
+                <div className="reward-rule-card-stats">
+                  <span>{rule.triggerType === "attendance_count" ? "출석 기준" : "점수 기준"}</span>
+                  <span>목표 {rule.targetValue}</span>
+                </div>
+              </li>
+            ))}
           </ul>
         )}
       </div>
@@ -439,11 +422,14 @@ function RewardsSection({ student }: { student: StudentDashboard }) {
               />
             </label>
             <label>
-              <span>보상 항목</span>
+              <span>보상 금액 (원)</span>
               <input
-                value={rewardItem}
-                onChange={(event) => setRewardItem(event.target.value)}
-                placeholder="예) 레고 닌자고 세트"
+                type="number"
+                min="1"
+                step="100"
+                value={rewardAmount}
+                onChange={(event) => setRewardAmount(event.target.value)}
+                placeholder="예) 1000"
               />
             </label>
           </div>
@@ -451,7 +437,7 @@ function RewardsSection({ student }: { student: StudentDashboard }) {
             className="quest-submit reward-form-submit"
             onClick={handleAddRule}
             type="button"
-            disabled={submitting || !title.trim() || !targetValue || !rewardItem.trim()}
+            disabled={submitting || !title.trim() || !targetValue || !rewardAmount}
           >
             {submitting ? "추가 중…" : "리워드 추가"}
           </button>

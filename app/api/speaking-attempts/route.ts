@@ -1,7 +1,7 @@
 import { getCurrentUser, rejectWithoutFamilySession } from "@/lib/auth";
 import { ensureDefaultStudent } from "@/lib/dashboard";
 import { evaluateSpeakingAttempt } from "@/lib/openai";
-import { maybeGrantDualModeBonus } from "@/lib/rewards";
+import { maybeGrantDualModeBonus, maybeGrantRisingStreakBonus } from "@/lib/rewards";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export async function POST(request: Request) {
@@ -100,6 +100,7 @@ export async function POST(request: Request) {
   }
 
   const dualModeBonus = await maybeGrantDualModeBonus(student.id);
+  const risingStreakBonus = await maybeGrantRisingStreakBonus(student.id);
 
-  return Response.json({ ...result, dualModeBonus });
+  return Response.json({ ...result, dualModeBonus, risingStreakBonus });
 }

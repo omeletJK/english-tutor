@@ -2,7 +2,7 @@ import { getCurrentUser, rejectWithoutFamilySession } from "@/lib/auth";
 import { ensureDefaultStudent } from "@/lib/dashboard";
 import { demoStudents } from "@/lib/demo-data";
 import { evaluateLearningEvent } from "@/lib/openai";
-import { maybeGrantDualModeBonus } from "@/lib/rewards";
+import { maybeGrantDualModeBonus, maybeGrantRisingStreakBonus } from "@/lib/rewards";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { clearCachedTask, generateAdaptiveTask, setCachedTask, type StudentContext } from "@/lib/task-generator";
 import type { LearningEventRequest, Observation, SkillState, Student } from "@/lib/types";
@@ -168,11 +168,13 @@ export async function POST(request: Request) {
   setCachedTask(student.id, body.mode, persistedNextTask, today);
 
   const dualModeBonus = await maybeGrantDualModeBonus(student.id);
+  const risingStreakBonus = await maybeGrantRisingStreakBonus(student.id);
 
   return Response.json({
     ...evaluation,
     nextTask: persistedNextTask,
-    dualModeBonus
+    dualModeBonus,
+    risingStreakBonus
   });
 }
 

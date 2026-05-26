@@ -1448,50 +1448,166 @@ function RewardView({
   activeStudent: StudentDashboard;
 }) {
   const rules = activeStudent.rewardRules;
+  const ledger = activeStudent.rewardLedger ?? [];
+  const balance = activeStudent.rewardBalance ?? 0;
+  const nextPayout = formatNextPayout();
+  const wonFormatter = new Intl.NumberFormat("ko-KR");
 
   return (
-    <section className="quest-board reward-world">
-      <div className="quest-title-row">
-        <div>
-          <p className="tiny-label">My rewards</p>
-          <h2>지금 도전 중인 보상</h2>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <section className="quest-board reward-world">
+        <div className="quest-title-row">
+          <div>
+            <p className="tiny-label">My piggy bank</p>
+            <h2>지금까지 모은 돈</h2>
+          </div>
+          <Envelope size={56} />
         </div>
-        <Envelope size={48} />
-      </div>
 
-      {rules.length === 0 ? (
-        <p className="big-plain">아직 등록된 보상이 없습니다. 부모님과 함께 만들어 보세요.</p>
-      ) : (
-        <ul className="reward-rule-cards">
-          {rules.map((rule) => {
-            const progress = Math.min(100, Math.round((rule.currentValue / rule.targetValue) * 100));
-            const remaining = Math.max(0, rule.targetValue - rule.currentValue);
-            return (
-              <li key={rule.id}>
-                <div className="reward-rule-card-head">
-                  <div>
-                    <strong>{rule.title}</strong>
-                    {rule.description ? <span className="rule-description">{rule.description}</span> : null}
-                  </div>
-                  <span className="reward-amount-pill">{rule.rewardItem}</span>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: 8,
+            marginTop: 8,
+            marginBottom: 12
+          }}
+        >
+          <strong
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: "3.2rem",
+              fontVariantNumeric: "tabular-nums",
+              color: "var(--accent)",
+              lineHeight: 1
+            }}
+          >
+            {wonFormatter.format(balance)}
+          </strong>
+          <span style={{ fontSize: "1.4rem", color: "var(--ink-soft)" }}>원</span>
+        </div>
+
+        <p
+          style={{
+            margin: 0,
+            padding: "12px 16px",
+            background: "var(--sand)",
+            borderRadius: 12,
+            color: "var(--ink)",
+            fontSize: "1rem",
+            lineHeight: 1.55
+          }}
+        >
+          📅 <strong>매월 1일</strong>에 그동안 모은 금액이 지급됩니다.
+          <span style={{ color: "var(--ink-soft)" }}> 다음 지급일: {nextPayout}</span>
+        </p>
+      </section>
+
+      <section className="quest-board">
+        <div className="quest-title-row">
+          <div>
+            <p className="tiny-label">Bonus rules</p>
+            <h2>적립 방법</h2>
+          </div>
+        </div>
+
+        {rules.length === 0 ? (
+          <p className="big-plain">아직 등록된 보너스가 없어요.</p>
+        ) : (
+          <ul style={{ display: "flex", flexDirection: "column", gap: 12, listStyle: "none", padding: 0, margin: 0 }}>
+            {rules.map((rule) => (
+              <li
+                key={rule.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  padding: 16,
+                  border: "1px solid var(--line)",
+                  borderRadius: 12,
+                  background: "var(--surface)"
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <strong style={{ display: "block", fontSize: "1.1rem", marginBottom: 4 }}>
+                    {rule.title}
+                  </strong>
+                  {rule.description ? (
+                    <span style={{ color: "var(--ink-soft)", fontSize: "0.95rem" }}>
+                      {rule.description}
+                    </span>
+                  ) : null}
                 </div>
-                <div className="reward-rule-card-stats">
-                  <span>{rule.triggerType === "attendance_count" ? "출석 성실도" : "종합 점수"}</span>
-                  <span>
-                    {rule.currentValue} / {rule.targetValue}
-                    {remaining > 0 ? ` · ${remaining} 남음` : " · 달성!"}
+                <span
+                  style={{
+                    flexShrink: 0,
+                    padding: "8px 16px",
+                    borderRadius: 999,
+                    background: "var(--moss-wash)",
+                    color: "var(--moss)",
+                    fontSize: "1rem",
+                    fontWeight: 600,
+                    fontVariantNumeric: "tabular-nums"
+                  }}
+                >
+                  +{wonFormatter.format(rule.rewardAmount)}원
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {ledger.length > 0 ? (
+        <section className="quest-board">
+          <div className="quest-title-row">
+            <div>
+              <p className="tiny-label">Recent</p>
+              <h2>최근 적립 내역</h2>
+            </div>
+          </div>
+          <ul style={{ display: "flex", flexDirection: "column", gap: 10, listStyle: "none", padding: 0, margin: 0 }}>
+            {ledger.slice(0, 12).map((item) => (
+              <li
+                key={item.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  padding: "10px 14px",
+                  borderBottom: "1px solid var(--line-soft)"
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: "1rem", color: "var(--ink)" }}>{item.reason}</p>
+                  <span style={{ fontSize: "0.85rem", color: "var(--ink-faint)" }}>
+                    {item.createdAt.slice(0, 10).replace(/-/g, ".")}
                   </span>
                 </div>
-                <div className="meter">
-                  <i style={{ width: `${progress}%` }} />
-                </div>
+                <strong
+                  style={{
+                    color: "var(--moss)",
+                    fontVariantNumeric: "tabular-nums",
+                    fontSize: "1.05rem"
+                  }}
+                >
+                  +{wonFormatter.format(item.amount)}원
+                </strong>
               </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+    </div>
   );
+}
+
+function formatNextPayout(): string {
+  const now = new Date();
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  return `${nextMonth.getFullYear()}년 ${nextMonth.getMonth() + 1}월 1일`;
 }
 
 function latestOverallScore(student: StudentDashboard) {

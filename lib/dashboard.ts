@@ -15,6 +15,8 @@ import type {
   MemoryNote,
   Observation,
   ProgressPoint,
+  RewardLedgerItem,
+  RewardRule,
   SkillState,
   SpeakingAttempt,
   Student,
@@ -84,7 +86,10 @@ async function buildStudentEntry(
     eventsResult,
     speakingAttemptsResult,
     snapshotsResult,
-    memoryNotesResult
+    memoryNotesResult,
+    rewardRulesResult,
+    rewardLedgerResult,
+    rewardBalanceResult
   ] = await Promise.all([
     supabase
       .from("daily_tasks")
@@ -129,7 +134,23 @@ async function buildStudentEntry(
       .select("*")
       .eq("student_id", student.id)
       .order("created_at", { ascending: false })
-      .limit(30)
+      .limit(30),
+    supabase
+      .from("reward_rules")
+      .select("*")
+      .eq("student_id", student.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("reward_ledger")
+      .select("*")
+      .eq("student_id", student.id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("student_reward_totals")
+      .select("reward_balance")
+      .eq("student_id", student.id)
+      .maybeSingle()
   ]);
 
   const recentObservations = (observationsResult.data ?? []).map(mapObservation);
@@ -139,6 +160,9 @@ async function buildStudentEntry(
   const speakingAttempts = (speakingAttemptsResult.data ?? []).map(mapSpeakingAttempt);
   const evaluationSnapshots = (snapshotsResult.data ?? []).map(mapEvaluationSnapshot);
   const memoryNotes = (memoryNotesResult.data ?? []).map(mapMemoryNote);
+  const rewardRules = (rewardRulesResult.data ?? []).map(mapRewardRule);
+  const rewardLedger = (rewardLedgerResult.data ?? []).map(mapRewardLedgerItem);
+  const rewardBalance = Number(rewardBalanceResult.data?.reward_balance ?? 0);
 
   const context: StudentContext = {
     student,
@@ -185,7 +209,9 @@ async function buildStudentEntry(
     evaluationSnapshots,
     speakingAttempts,
     memoryNotes,
-    rewardRules: fallback.rewardRules,
+    rewardRules: rewardRules.length > 0 ? rewardRules : fallback.rewardRules,
+    rewardBalance,
+    rewardLedger,
     weeklySummary: fallback.weeklySummary
   };
 }
@@ -462,6 +488,28 @@ function mapMemoryNote(row: Record<string, any>): MemoryNote {
     type: row.type,
     claim: row.claim,
     evidence: row.evidence
+  };
+}
+
+function mapRewardRule(row: Record<string, any>): RewardRule {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description ?? "",
+    triggerType: row.trigger_type,
+    targetValue: Number(row.target_value ?? 0),
+    rewardAmount: Number(row.reward_amount ?? 0),
+    status: row.status
+  };
+}
+
+function mapRewardLedgerItem(row: Record<string, any>): RewardLedgerItem {
+  return {
+    id: row.id,
+    amount: Number(row.amount ?? 0),
+    reason: row.reason,
+    sourceType: row.source_type,
+    createdAt: row.created_at
   };
 }
 

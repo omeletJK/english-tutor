@@ -108,46 +108,42 @@ const hayoolEvaluations: EvaluationSnapshot[] = [
 
 const jiyoolRewardRules: RewardRule[] = [
   {
-    id: "j-rule-attendance",
-    title: "수업 20번 완료하면 레고 세트",
-    description: "매일 학습 습관 유지를 응원합니다.",
-    triggerType: "attendance_count",
-    targetValue: 20,
-    currentValue: 12,
-    rewardItem: "레고 닌자고 세트",
+    id: "j-rule-dual",
+    title: "오늘 Writing·Speaking 모두 90점",
+    description: "하루에 라이팅과 스피킹 모두 90점 이상이면 +1,000원",
+    triggerType: "score_growth",
+    targetValue: 90,
+    rewardAmount: 1000,
     status: "active"
   },
   {
-    id: "j-rule-growth",
-    title: "종합 점수 80점 도달하면 액정 태블릿",
-    description: "꾸준한 실력 향상을 축하합니다.",
+    id: "j-rule-streak",
+    title: "5일 연속 점수 상승",
+    description: "최종 점수가 5일 이상 연속 상승하면 +5,000원",
     triggerType: "score_growth",
-    targetValue: 80,
-    currentValue: 78,
-    rewardItem: "액정 태블릿",
+    targetValue: 5,
+    rewardAmount: 5000,
     status: "active"
   }
 ];
 
 const hayoolRewardRules: RewardRule[] = [
   {
-    id: "h-rule-attendance",
-    title: "수업 15번 완료하면 보드게임",
-    description: "매일 학습 동기를 만들어 줍니다.",
-    triggerType: "attendance_count",
-    targetValue: 15,
-    currentValue: 7,
-    rewardItem: "보드게임 한 박스",
+    id: "h-rule-dual",
+    title: "오늘 Writing·Speaking 모두 90점",
+    description: "하루에 라이팅과 스피킹 모두 90점 이상이면 +1,000원",
+    triggerType: "score_growth",
+    targetValue: 90,
+    rewardAmount: 1000,
     status: "active"
   },
   {
-    id: "h-rule-growth",
-    title: "종합 점수 60점 도달하면 외식 데이트",
-    description: "자신감 회복과 작은 성취를 축하합니다.",
+    id: "h-rule-streak",
+    title: "5일 연속 점수 상승",
+    description: "최종 점수가 5일 이상 연속 상승하면 +5,000원",
     triggerType: "score_growth",
-    targetValue: 60,
-    currentValue: 54,
-    rewardItem: "원하는 곳에서 외식 한 번",
+    targetValue: 5,
+    rewardAmount: 5000,
     status: "active"
   }
 ];
@@ -382,6 +378,8 @@ export const demoStudents: StudentDashboard[] = [
     speakingAttempts: jiyoolSpeakingAttempts,
     memoryNotes: jiyoolMemoryNotes,
     rewardRules: jiyoolRewardRules,
+    rewardBalance: 0,
+    rewardLedger: [],
     weeklySummary:
       "상상하는 주제에서 답변 길이가 늘었습니다. 다음 목표는 이유를 두 문장으로 설명하는 것입니다."
   },
@@ -494,6 +492,8 @@ export const demoStudents: StudentDashboard[] = [
     speakingAttempts: hayoolSpeakingAttempts,
     memoryNotes: hayoolMemoryNotes,
     rewardRules: hayoolRewardRules,
+    rewardBalance: 0,
+    rewardLedger: [],
     weeklySummary:
       "짧은 단어 답변이 안정되고 있습니다. 다음 목표는 I see, I like 문장으로 말하는 것입니다."
   }

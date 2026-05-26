@@ -20,13 +20,12 @@ export async function POST(request: Request) {
     description: String(body.description ?? "").trim(),
     triggerType: body.triggerType === "score_growth" ? "score_growth" : "attendance_count",
     targetValue: Number(body.targetValue ?? 1),
-    currentValue: Number(body.currentValue ?? 0),
-    rewardItem: String(body.rewardItem ?? "").trim(),
+    rewardAmount: Number(body.rewardAmount ?? 0),
     status: "active"
   };
 
-  if (!rule.title || !rule.rewardItem || !Number.isFinite(rule.targetValue) || rule.targetValue < 1) {
-    return Response.json({ error: "Title, reward item, and target value are required." }, { status: 400 });
+  if (!rule.title || !Number.isFinite(rule.rewardAmount) || rule.rewardAmount < 1 || !Number.isFinite(rule.targetValue) || rule.targetValue < 1) {
+    return Response.json({ error: "Title, reward amount, and target value are required." }, { status: 400 });
   }
 
   const supabase = getSupabaseAdmin();
@@ -42,7 +41,7 @@ export async function POST(request: Request) {
       description: rule.description,
       trigger_type: rule.triggerType,
       target_value: rule.targetValue,
-      reward_item: rule.rewardItem,
+      reward_amount: rule.rewardAmount,
       status: rule.status
     })
     .select("*")
@@ -58,8 +57,7 @@ export async function POST(request: Request) {
     description: data.description ?? "",
     triggerType: data.trigger_type,
     targetValue: data.target_value,
-    currentValue: rule.currentValue,
-    rewardItem: data.reward_item ?? rule.rewardItem,
+    rewardAmount: data.reward_amount ?? rule.rewardAmount,
     status: data.status
   });
 }
