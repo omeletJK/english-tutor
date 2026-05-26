@@ -401,19 +401,19 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
           className="stage-topbar"
           style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <AvatarButton
               studentId={activeStudent.student.id}
               studentName={activeStudent.student.displayName}
-              size={52}
+              size={60}
               shape="rounded"
               crop="bust"
             />
             <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
-              <strong style={{ fontSize: "1.15rem", fontWeight: 600 }}>
+              <strong style={{ fontSize: "1.35rem", fontWeight: 600 }}>
                 {activeStudent.student.displayName}
               </strong>
-              <small style={{ color: "var(--ink-soft)", fontSize: "0.9rem" }}>
+              <small style={{ color: "var(--ink-soft)", fontSize: "1rem" }}>
                 {activeStudent.student.cefrLevel} · {activeStudent.student.usGradeLevel} · {latestOverallScore(activeStudent)}점
               </small>
             </div>
@@ -463,16 +463,16 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
                       type="button"
                       onClick={() => setSubTab(key)}
                       style={{
-                        padding: "14px 22px",
+                        padding: "16px 26px",
                         background: "transparent",
                         border: "none",
                         borderBottom: active
-                          ? "2px solid var(--accent)"
-                          : "2px solid transparent",
+                          ? "3px solid var(--accent)"
+                          : "3px solid transparent",
                         color: active ? "var(--ink)" : "var(--ink-soft)",
                         fontWeight: active ? 600 : 500,
                         cursor: "pointer",
-                        fontSize: "1.1rem",
+                        fontSize: "1.25rem",
                         marginBottom: -1
                       }}
                     >
@@ -498,15 +498,15 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
                     <AvatarButton
                       studentId={activeStudent.student.id}
                       studentName={activeStudent.student.displayName}
-                      size={96}
+                      size={112}
                       shape="rounded"
                       crop="bust"
                     />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <h2 style={{ margin: 0, lineHeight: 1.3, fontSize: "1.5rem" }}>
+                      <h2 style={{ margin: 0, lineHeight: 1.3, fontSize: "1.85rem" }}>
                         안녕 {activeStudent.student.displayName}!
                       </h2>
-                      <p style={{ margin: "8px 0 0", color: "var(--ink-soft)", lineHeight: 1.55, fontSize: "1.05rem" }}>
+                      <p style={{ margin: "10px 0 0", color: "var(--ink-soft)", lineHeight: 1.55, fontSize: "1.2rem" }}>
                         {activeTab === "writing"
                           ? "오늘은 어떤 글을 써볼까? 천천히 생각해보고 시작해도 돼."
                           : "오늘은 어떤 이야기를 해볼까? 준비되면 녹음 버튼을 눌러봐."}
