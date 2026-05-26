@@ -63,9 +63,10 @@ export function SessionDetailModal(props: ModalProps) {
           border: "1px solid var(--line)",
           borderRadius: 14,
           width: "min(1280px, 96vw)",
-          maxHeight: "min(92vh, 1000px)",
+          maxHeight: "min(88vh, 920px)",
           display: "flex",
           flexDirection: "column",
+          overflow: "hidden",
           boxShadow:
             "0 1px 2px rgba(20, 16, 8, 0.06), 0 24px 48px -20px rgba(20, 16, 8, 0.25)"
         }}
@@ -76,7 +77,8 @@ export function SessionDetailModal(props: ModalProps) {
             borderBottom: "1px solid var(--line-soft)",
             display: "flex",
             alignItems: "flex-start",
-            gap: 16
+            gap: 16,
+            flex: "0 0 auto"
           }}
         >
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -145,7 +147,9 @@ export function SessionDetailModal(props: ModalProps) {
             overflowY: "auto",
             display: "flex",
             flexDirection: "column",
-            gap: 16
+            gap: 16,
+            flex: "1 1 auto",
+            minHeight: 0
           }}
         >
           {props.kind === "speaking"
