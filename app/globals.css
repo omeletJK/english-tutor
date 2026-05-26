@@ -91,16 +91,16 @@ h3 {
 }
 
 h1 {
-  font-size: 2rem;
+  font-size: 2.15rem;
   font-weight: 700;
 }
 
 h2 {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
 }
 
 h3 {
-  font-size: 1.125rem;
+  font-size: 1.25rem;
   letter-spacing: -0.01em;
 }
 
@@ -191,9 +191,9 @@ select:focus {
   margin: 0 0 8px;
   color: var(--ink-faint);
   font-family: var(--font-body);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.06em;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
@@ -1190,8 +1190,8 @@ select:focus {
 }
 
 .editor-toolbar span {
-  color: var(--ink-faint);
-  font-size: 0.82rem;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
   font-weight: 500;
 }
 
@@ -1206,8 +1206,8 @@ select:focus {
 
 .editor-action-panel p {
   color: var(--ink-soft);
-  font-size: 0.9rem;
-  line-height: 1.5;
+  font-size: 1rem;
+  line-height: 1.55;
 }
 
 .editor-action-panel .quest-submit {
