@@ -45,8 +45,12 @@ export async function generateAdaptiveTask(input: GenerateInput): Promise<DailyT
     return cached;
   }
 
+  // Try OpenAI twice (empty/invalid responses happen ~10-20% of the time on
+  // gpt-5.4-mini with our larger instructions) before giving up to fallback.
   const task = process.env.OPENAI_API_KEY
-    ? await callOpenAIForTask(input).catch(() => fallbackAdaptiveTask(input))
+    ? await callOpenAIForTask(input).catch(() =>
+        callOpenAIForTask(input).catch(() => fallbackAdaptiveTask(input))
+      )
     : fallbackAdaptiveTask(input);
 
   setCachedTask(input.context.student.id, input.mode, task, date);
@@ -130,23 +134,10 @@ async function callOpenAIForTask(input: GenerateInput): Promise<DailyTask> {
     body: JSON.stringify({
       model: evaluationModel(),
       instructions:
-        mode === "speaking"
-          ? [
-              "You are an expert English tutor. Write ONE open thinking question that a real human teacher would ask a child at the given CEFR/grade level for a 30-90 second spoken answer.",
-              "The question must invite the student to think and form their own answer. It should not dictate sentence structure.",
-              "STRICTLY FORBIDDEN: fill-in-blank templates ('I see a ___'), required first sentences, numbered sentence checklists ('1) ... 2) ... 3) ...'), 'choose a starter', word banks, or any scaffolding that pre-builds the answer for the student.",
-              "Calibrate difficulty by topic abstraction and response length expectation, NOT by adding scaffolds. Lower levels get more concrete, personal topics; higher levels get opinions, comparisons, hypotheticals, or short arguments.",
-              "The prompt should be 1-2 sentences total. Tell the student what to think about, not how to phrase the answer.",
-              "Return only valid JSON."
-            ].join(" ")
-          : [
-              "You are an expert English tutor. Write ONE open thinking question that a real human teacher would assign for a short written paragraph (4-8 sentences) at the given CEFR/grade level.",
-              "The question must invite the student to organize their own thoughts. It should not dictate sentence structure.",
-              "STRICTLY FORBIDDEN: fill-in-blank templates ('I see a ___'), required first sentences, numbered sentence checklists ('1) ... 2) ... 3) ...'), 'choose a starter', word banks, or any scaffolding that pre-builds the paragraph for the student.",
-              "Calibrate difficulty by topic abstraction and expected paragraph length, NOT by adding scaffolds. Lower levels: concrete personal topics (a memory, a favorite thing) with reasons. Mid levels: comparisons, descriptions of experiences with explanation. Higher levels: opinions with arguments, hypotheticals, what-would-you-do scenarios.",
-              "The prompt should be 1-2 sentences total. Tell the student what to think about, not how to phrase the paragraph.",
-              "Return only valid JSON."
-            ].join(" "),
+        (mode === "speaking"
+          ? "You are an expert English tutor. Write ONE open thinking question that a real human teacher would ask a child at the given CEFR/grade level for a 30-90 second spoken answer. The question must invite the student to think and form their own answer. It should not dictate sentence structure. STRICTLY FORBIDDEN: fill-in-blank templates, required first sentences, numbered sentence checklists, 'choose a starter', word banks, or any scaffolding. Calibrate difficulty by topic abstraction and response length, NOT by scaffolds. 1-2 sentence prompt total. Return only valid JSON."
+          : "You are an expert English tutor. Write ONE open thinking question that a real human teacher would assign for a short written paragraph (4-8 sentences) at the given CEFR/grade level. The question must invite the student to organize their own thoughts. STRICTLY FORBIDDEN: fill-in-blank templates, required first sentences, numbered sentence checklists, 'choose a starter', word banks, or any scaffolding. Calibrate difficulty by topic abstraction and expected paragraph length. 1-2 sentence prompt total. Return only valid JSON.") +
+        " DOMAIN ROTATION IS MANDATORY. Before writing the prompt, pick ONE domain from the user message's domain_pool and set requested_shape.domain to that exact string. The chosen domain MUST be different from the dominant subject of every entry in recent_prompts_to_avoid. If avoided prompts are about school life or classroom rules, you MUST jump to a clearly different bucket — examples: science & discovery, nature & environment, philosophy & big questions, news & current events, arts/books/media, ethics, technology, history. Do NOT pick another school-life angle. The new prompt's subject must be immediately recognizable as different from anything in recent_prompts_to_avoid. This rule overrides any preference for school topics.",
       input: [
         {
           role: "user",
@@ -229,9 +220,19 @@ async function callOpenAIForTask(input: GenerateInput): Promise<DailyTask> {
 
   const payload = await response.json();
   const text = extractOutputText(payload);
+  if (!text || text.trim().length === 0) {
+    throw new Error("openai empty response");
+  }
   const parsed = JSON.parse(text);
 
-  return normalizeGeneratedTask(parsed, input);
+  const normalized = normalizeGeneratedTask(parsed, input);
+  // If the model dropped the prompt entirely, treat as failure so the retry
+  // can fire — normalizeGeneratedTask would otherwise quietly hand back a
+  // fallback task that bypasses our retry path.
+  if (!normalized.prompt || normalized.prompt.trim().length === 0) {
+    throw new Error("openai returned no prompt text");
+  }
+  return normalized;
 }
 
 function normalizeGeneratedTask(parsed: any, input: GenerateInput): DailyTask {
@@ -336,87 +337,119 @@ function buildFallbackPrompt(args: { mode: TaskMode; grade: number; weakest: Ski
   const { mode, grade, interest, date, studentId, avoidPrompts } = args;
   const topicSeed = interest ? extractTopicSeed(interest) : null;
 
-  const speakingByLevel: Record<"low" | "mid" | "high", string[]> = {
+  /* Fallback prompts are tagged with a domain so the refresh path can rotate
+   * across domains even when OpenAI is unavailable. Order within each band:
+   * we keep school-life items but they no longer dominate. */
+  type FallbackEntry = { domain: string; prompt: string };
+  const speakingByLevel: Record<"low" | "mid" | "high", FallbackEntry[]> = {
     low: [
-      "What is one thing you enjoyed doing today, and why did you enjoy it?",
-      "If you could spend an afternoon doing anything, what would you choose, and why?",
-      "Tell me about a person who makes you happy and one reason why.",
-      "What food would you eat every day if you could? What do you like about it?",
-      "Describe your favorite animal. What is it like, and what do you find interesting about it?",
-      "If you had to give your bedroom a new name, what would you call it and why?",
-      "Tell me about a small adventure you had recently — even something tiny.",
-      "What is something you can do now that you couldn't do a year ago?"
+      { domain: "school life", prompt: "What is one thing you enjoyed doing at school today, and why?" },
+      { domain: "family & home", prompt: "Tell me about a person in your family who makes you happy and one reason why." },
+      { domain: "food & cooking", prompt: "What food would you eat every day if you could? What do you like about it?" },
+      { domain: "nature & animals", prompt: "Describe your favorite animal. What is it like, and what do you find interesting about it?" },
+      { domain: "weather & seasons", prompt: "What is your favorite kind of weather, and what do you like to do when it is like that?" },
+      { domain: "imagination & future", prompt: "If you could invent a brand-new game for your friends, what would it look like and how would you play it?" },
+      { domain: "hobbies & games", prompt: "Tell me about something you like to play or make. What makes it fun?" },
+      { domain: "books & stories", prompt: "What is a story or book that you keep thinking about? What part stays with you?" },
+      { domain: "art & music", prompt: "If you could fill a room with one kind of art or music, what would it be and why?" }
     ],
     mid: [
-      "What is one skill you want to get better at this year, and how could you practice it?",
-      "Would you rather live by the ocean or in the mountains? Pick one and explain your thinking.",
-      "Describe a recent moment when you felt proud of yourself. What happened, and why did it matter to you?",
-      "If you could redesign your bedroom or study space, what would you change or add, and how would it help you feel better or study better?",
-      "Think about a friend you have known for a long time. What do you appreciate about that person?",
-      "If you could try a job for one day to see if you'd like it, which job would you pick and why?",
-      "Tell me about a book, movie, or song that stuck with you. What did it make you think about?",
-      "What does a perfect Saturday look like for you? Walk me through it.",
-      "If you could invent one rule for your family, what would it be and why?"
+      { domain: "nature & environment", prompt: "If you could spend a day in any natural place — forest, ocean, desert, mountain — which would you pick, and what would you do there?" },
+      { domain: "science & discovery", prompt: "What is one thing in science or nature that you would love to understand better, and why does it pull your attention?" },
+      { domain: "ethics & fairness", prompt: "When is it fair to treat people differently, and when is it not? Explain with an example." },
+      { domain: "news & current events", prompt: "What is one thing happening in the world right now that you have an opinion about, and what is your opinion?" },
+      { domain: "arts, books & media", prompt: "Tell me about a book, movie, or song that stuck with you. What did it make you think about?" },
+      { domain: "history & culture", prompt: "If you could live for one week in any time or place in history, where and when would you choose, and why?" },
+      { domain: "future & big questions", prompt: "What is one way you think life will be different ten years from now, and how do you feel about that?" },
+      { domain: "hobbies & creative interests", prompt: "What is a skill you want to get better at this year, and how could you practice it?" },
+      { domain: "school life", prompt: "Describe a moment at school when you felt proud of yourself. What happened, and why did it matter?" },
+      { domain: "sports & health", prompt: "What is one habit that you think helps people feel better, and why?" },
+      { domain: "money & responsibility", prompt: "If you were given a small amount of money to use however you wanted, what would you do with it and why?" },
+      { domain: "neighborhood & community", prompt: "Describe one thing about your neighborhood that you appreciate, and one thing you would change." }
     ],
     high: [
-      "Do you think students learn more from making mistakes or from getting things right the first time? Take a side and explain.",
-      "If you could change one rule at your school, what would it be and how would things be different?",
-      "What is something many people believe that you disagree with? Explain why.",
-      "Is it more important to be kind or to be honest? Explain how you decide when they conflict.",
-      "Should phones be allowed in the classroom? Take a clear position with two reasons.",
-      "Tell me about a time you changed your mind about something. What caused the change?",
-      "If you could meet any person from history for thirty minutes, who would it be and what would you ask?",
-      "What is a skill you think every middle-schooler should learn, and why?"
+      { domain: "philosophy & big questions", prompt: "When, if ever, is it reasonable to value comfort over truth? Explain with the limits of your own answer." },
+      { domain: "ethics & moral dilemmas", prompt: "Is it more important to be kind or to be honest? Explain how you decide when they conflict." },
+      { domain: "current events & news", prompt: "What is something happening in the world right now that you think deserves more attention? Make the case." },
+      { domain: "science & innovation", prompt: "What scientific advance from the past 50 years do you think changed daily life the most, and what trade-off came with it?" },
+      { domain: "technology's impact on society", prompt: "How has constant connectivity changed friendship — for the better, for the worse, or both? Give your view with reasons." },
+      { domain: "arts, literature & media", prompt: "Tell me about a book, film, or song that genuinely changed how you see something. What changed?" },
+      { domain: "history & culture", prompt: "If you could meet one person from history for thirty minutes, who would it be and what would you ask?" },
+      { domain: "economics, work & money", prompt: "What does 'meaningful work' mean to you, and how might that idea change across someone's life?" },
+      { domain: "personal identity & belief", prompt: "Tell me about a belief you used to hold but no longer do. What caused the change?" },
+      { domain: "global issues & politics", prompt: "What is one global issue you think your generation will be judged on, and why?" },
+      { domain: "human nature & psychology", prompt: "Why do you think people sometimes know what is right but still do the other thing?" },
+      { domain: "environment & climate", prompt: "What is one trade-off in environmental policy that you find genuinely hard, and how would you weigh it?" },
+      { domain: "school life", prompt: "If you could redesign one part of school life so it serves students better, what would it be and why?" }
     ]
   };
 
-  const writingByLevel: Record<"low" | "mid" | "high", string[]> = {
+  const writingByLevel: Record<"low" | "mid" | "high", FallbackEntry[]> = {
     low: [
-      "Think of a place that feels comfortable to you. Describe what it looks like and why it feels that way.",
-      "Write about a small moment from this week that you want to remember. Explain what happened and how you felt.",
-      "Describe a person you trust. What are they like, and why do you trust them?",
-      "Write about your favorite toy or object. Where did you get it, and why does it matter to you?",
-      "Describe your favorite season. What does it look like, feel like, and smell like?",
-      "Tell the story of a meal you really enjoyed. Who were you with, and what made it special?",
-      "Write about a pet you have or a pet you wish you had. Describe its personality and a memory with it.",
-      "What is one thing in nature you find amazing? Describe it and explain what you like about it."
+      { domain: "family & home", prompt: "Think of a place at home that feels comfortable to you. Describe what it looks like and why it feels that way." },
+      { domain: "imagination & future", prompt: "Imagine a small new animal that nobody has ever seen. Describe what it looks like, where it lives, and what it eats." },
+      { domain: "nature & animals", prompt: "Write about a pet you have or a pet you wish you had. Describe its personality and one memory or imagined moment with it." },
+      { domain: "weather & seasons", prompt: "Describe your favorite season. What does it look like, feel like, and smell like?" },
+      { domain: "food & cooking", prompt: "Tell the story of a meal you really enjoyed. Who were you with, and what made it special?" },
+      { domain: "books & stories", prompt: "Write about a story or book character you remember well. Describe them and explain what makes them stick with you." },
+      { domain: "art & music", prompt: "Write about a song, picture, or drawing that you like. Describe it and explain how it makes you feel." },
+      { domain: "hobbies & games", prompt: "Write about something you like to make or build. Describe how you make it and why you enjoy it." },
+      { domain: "school life", prompt: "Write about a small moment from school this week that you want to remember. Explain what happened and how you felt." }
     ],
     mid: [
-      "Think of something you used to find difficult but no longer do. Explain what changed for you.",
-      "Describe a tradition or routine in your family that means something to you. What is it, and why does it matter?",
-      "Write about a choice you made recently that you are still thinking about. What was the choice, and why does it stay with you?",
-      "Write one paragraph about whether students should be allowed to use phones during lunch. Include a topic sentence, two reasons, and a closing sentence.",
-      "Pick a hobby you enjoy and write a paragraph that could convince a friend to try it. Use at least two specific reasons.",
-      "Write about a teacher (real or imagined) who taught you something that didn't fit on a test.",
-      "Describe a problem in your neighborhood and a small action a kid your age could take to help.",
-      "Write about a place you visited that surprised you. What did you expect, and what was different?"
+      { domain: "nature & environment", prompt: "Describe a place in nature you have visited (or imagine visiting). What did it look, sound, and feel like, and why did it stay with you?" },
+      { domain: "science & discovery", prompt: "Write a paragraph about a scientific idea or natural phenomenon you find fascinating. Why does it interest you?" },
+      { domain: "ethics & fairness", prompt: "Write about a time you saw something unfair. What happened, how did you respond, and what would you do differently now?" },
+      { domain: "news & current events", prompt: "Write a paragraph about a news story you have heard recently. Explain what happened and what you think about it." },
+      { domain: "arts, books & media", prompt: "Pick a book, movie, or song that taught you something. Write a paragraph about what you learned and how it taught you." },
+      { domain: "history & culture", prompt: "Write about a historical event or figure that interests you. Explain what they did and why it still matters." },
+      { domain: "technology in daily life", prompt: "Write about one piece of technology you use every day. How does it help you, and is there a downside?" },
+      { domain: "future & big questions", prompt: "Imagine yourself ten years from now. Describe one thing you hope will be true about your life, and one thing you hope will be true about the world." },
+      { domain: "hobbies & creative interests", prompt: "Write a paragraph that could convince a friend to try a hobby you enjoy. Use at least two specific reasons." },
+      { domain: "school life", prompt: "Think of something you used to find difficult at school but no longer do. Explain what changed for you." },
+      { domain: "neighborhood & community", prompt: "Describe a problem in your neighborhood and one small action a kid your age could take to help." },
+      { domain: "sports & health", prompt: "Write about an activity that makes your body or mind feel better. Describe it and explain why it works for you." }
     ],
     high: [
-      "Some people say technology is making us less patient. Do you agree? Use examples from your own life.",
-      "Imagine you could redesign one part of school life. What would you change, and what would be better one year later?",
-      "Write about a belief you used to hold but no longer do. What changed your mind?",
-      "Should middle schools require students to learn a second language? Take a position and defend it with at least two reasons.",
-      "Write a short opinion paragraph: 'The most important thing a school can teach is ___.' Defend your choice.",
-      "Describe a problem in your community that doesn't get enough attention. Why does it matter, and what could be done?",
-      "Argue for or against giving every student a daily quiet hour with no screens. Use evidence from your own experience.",
-      "Write about a time when doing the easy thing would have been wrong. What did you decide, and what did you learn?"
+      { domain: "philosophy & big questions", prompt: "When, if ever, is it more responsible to revise a popular belief than to defend it? Use a specific case to argue your view, and name the limits of your answer." },
+      { domain: "ethics & moral dilemmas", prompt: "Write about a real or imagined situation where doing the easy thing would be wrong. Explain how you would decide, and what would make the decision hard." },
+      { domain: "current events & news", prompt: "Pick a current event you care about. Describe what is happening, why it matters, and what a reasonable response would look like." },
+      { domain: "science & innovation", prompt: "Write about a scientific or technological development of the last decade that you find genuinely important. What did it change, and what did it cost?" },
+      { domain: "technology's impact on society", prompt: "Some people say constant connectivity is making us less patient. Do you agree? Use examples from your own experience or what you have observed." },
+      { domain: "arts, literature & media", prompt: "Write about a piece of art, literature, or film that changed how you see something. Describe the work and the shift it caused in you." },
+      { domain: "history & culture", prompt: "Write about a historical decision or movement whose effects we are still living with. Explain the link in concrete terms." },
+      { domain: "economics, work & money", prompt: "What does 'meaningful work' mean to you, and how might that definition evolve over a person's life?" },
+      { domain: "personal identity & belief", prompt: "Write about a belief you used to hold but no longer do. What changed your mind, and what does the change teach you about how you reason?" },
+      { domain: "global issues & politics", prompt: "Argue for or against a specific policy you care about. Use at least one counter-argument and respond to it." },
+      { domain: "environment & climate", prompt: "Write about a climate or environmental trade-off you find genuinely difficult. Make your case and acknowledge what makes the opposite view reasonable." },
+      { domain: "human nature & psychology", prompt: "Write about why people sometimes know what is right but still do the other thing. Use a real or imagined example to anchor the argument." },
+      { domain: "education & learning itself", prompt: "Write a short opinion piece: 'The most important thing school can teach is ___.' Defend your choice with at least two reasons." }
     ]
   };
 
   const band = grade <= 3 ? "low" : grade <= 6 ? "mid" : "high";
   const pool = mode === "speaking" ? speakingByLevel[band] : writingByLevel[band];
 
-  // Exclude prompts already shown today so a refresh genuinely rotates topics.
   const avoidSet = new Set((avoidPrompts ?? []).map((p) => p.trim()));
-  const filtered = pool.filter((p) => !avoidSet.has(p));
-  const candidates = filtered.length > 0 ? filtered : pool;
 
-  // Stable hash that rotates each day AND differs between students and modes,
-  // so the same student rarely sees the same prompt within a week. Mixing
-  // avoidPrompts.length into the seed forces a different pick on each refresh.
+  // Step 1: drop any prompt the student already saw today (exact match).
+  const notSeen = pool.filter((entry) => !avoidSet.has(entry.prompt));
+
+  // Step 2: figure out which domains we've already used today and prefer
+  // entries from a DIFFERENT domain so the fallback also rotates subjects
+  // (the whole reason 다른 주제 받기 felt broken).
+  const usedDomains = new Set<string>();
+  for (const entry of pool) {
+    if (avoidSet.has(entry.prompt)) usedDomains.add(entry.domain);
+  }
+  const fromNewDomain = notSeen.filter((entry) => !usedDomains.has(entry.domain));
+  const candidates = fromNewDomain.length > 0 ? fromNewDomain : notSeen.length > 0 ? notSeen : pool;
+
+  // Stable hash so the very first prompt of the day is deterministic, but
+  // mixing in avoidSet.size guarantees each refresh picks a different slot.
   const seedString = `${studentId}-${mode}-${date}-${topicSeed ?? args.weakest?.skill ?? "general"}-r${avoidSet.size}`;
   const seedHash = hashString(seedString);
-  return candidates[seedHash % candidates.length];
+  return candidates[seedHash % candidates.length].prompt;
 }
 
 function hashString(input: string): number {
