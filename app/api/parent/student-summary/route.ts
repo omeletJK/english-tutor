@@ -1,6 +1,7 @@
 import { getCurrentUser, rejectWithoutFamilySession } from "@/lib/auth";
-import { loadDashboardData } from "@/lib/dashboard";
-import { summarizeStudentDevelopment } from "@/lib/openai";
+import { summarizeStudentDevelopment, type StudentDevelopmentInput } from "@/lib/openai";
+
+type SummaryRequest = Partial<StudentDevelopmentInput>;
 
 export async function POST(request: Request) {
   const unauthorized = await rejectWithoutFamilySession();
@@ -13,26 +14,22 @@ export async function POST(request: Request) {
     return Response.json({ error: "Parent role is required." }, { status: 403 });
   }
 
-  const body = (await request.json()) as { studentId?: string };
-  const studentId = String(body.studentId ?? "");
-  if (!studentId) {
-    return Response.json({ error: "studentId is required." }, { status: 400 });
-  }
-
-  const dashboard = await loadDashboardData(currentUser);
-  const entry = dashboard.students.find((item) => item.student.id === studentId);
-  if (!entry) {
-    return Response.json({ error: "Student not found." }, { status: 404 });
+  // The client already has the full dashboard in memory — accept the snapshot
+  // directly so we don't pay for a second loadDashboardData (which was
+  // re-running 20 Supabase queries on every Overview mount).
+  const body = (await request.json()) as SummaryRequest;
+  if (!body.displayName || !body.cefrLevel || !body.usGradeLevel) {
+    return Response.json({ error: "Missing student snapshot." }, { status: 400 });
   }
 
   const summary = await summarizeStudentDevelopment({
-    displayName: entry.student.displayName,
-    cefrLevel: entry.student.cefrLevel,
-    usGradeLevel: entry.student.usGradeLevel,
-    observations: entry.recentObservations,
-    skillStates: entry.skillStates,
-    recentSnapshots: entry.evaluationSnapshots,
-    recentSpeakingAttempts: entry.speakingAttempts
+    displayName: body.displayName,
+    cefrLevel: body.cefrLevel,
+    usGradeLevel: body.usGradeLevel,
+    observations: body.observations ?? [],
+    skillStates: body.skillStates ?? [],
+    recentSnapshots: body.recentSnapshots ?? [],
+    recentSpeakingAttempts: body.recentSpeakingAttempts ?? []
   });
 
   return Response.json({ summary });

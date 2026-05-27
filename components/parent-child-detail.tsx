@@ -115,7 +115,15 @@ function OverviewSection({ student }: { student: StudentDashboard }) {
     fetch("/api/parent/student-summary", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ studentId: student.student.id })
+      body: JSON.stringify({
+        displayName: student.student.displayName,
+        cefrLevel: student.student.cefrLevel,
+        usGradeLevel: student.student.usGradeLevel,
+        observations: student.recentObservations,
+        skillStates: student.skillStates,
+        recentSnapshots: student.evaluationSnapshots,
+        recentSpeakingAttempts: student.speakingAttempts
+      })
     })
       .then(async (response) => {
         if (!response.ok) {
