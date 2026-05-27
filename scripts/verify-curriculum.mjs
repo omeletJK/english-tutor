@@ -171,10 +171,61 @@ async function callOpenAI(instructions, inputObj) {
   return chunks.join("\n").trim();
 }
 
+/* ----------------- Domain pools (mirror of lib/task-generator) -------- */
+const DOMAIN_POOLS = {
+  elementary: [
+    "school life",
+    "family & home",
+    "friends",
+    "hobbies & games",
+    "food & cooking",
+    "nature & animals",
+    "weather & seasons",
+    "sports & play",
+    "art & music",
+    "holidays & traditions",
+    "imagination & future",
+    "books & stories"
+  ],
+  middle: [
+    "school life",
+    "family & relationships",
+    "hobbies & creative interests",
+    "nature & environment",
+    "science & discovery",
+    "technology in daily life",
+    "ethics & fairness",
+    "news & current events",
+    "arts, books & media",
+    "history & culture",
+    "sports & health",
+    "future & big questions",
+    "money & responsibility",
+    "neighborhood & community"
+  ],
+  high: [
+    "society & community",
+    "philosophy & big questions",
+    "ethics & moral dilemmas",
+    "current events & news",
+    "science & innovation",
+    "technology's impact on society",
+    "arts, literature & media",
+    "history & culture",
+    "economics, work & money",
+    "personal identity & belief",
+    "global issues & politics",
+    "human nature & psychology",
+    "education & learning itself",
+    "environment & climate"
+  ]
+};
+
 /* ----------------- Task generation (mirror of lib/task-generator) ----- */
-async function generateTask(gradeKey, mode) {
+async function generateTask(gradeKey, mode, avoidPrompts = []) {
   const g = GRADES[gradeKey];
   const snippet = curriculumSnippet(gradeKey, mode);
+  const domainPool = DOMAIN_POOLS[g.schoolBand];
   const instructions =
     mode === "speaking"
       ? [
@@ -206,21 +257,23 @@ async function generateTask(gradeKey, mode) {
     skillStates: [],
     recentObservations: [],
     today: new Date().toISOString().slice(0, 10),
-    recent_prompts_to_avoid: [],
+    recent_prompts_to_avoid: avoidPrompts,
+    domain_pool: domainPool,
     authoring_rules: [
-      "Match the student's CEFR level precisely.",
-      "Match the student's US grade equivalent.",
-      "Calibrate the prompt's cognitive load to student.curriculumStandard. Do not invent expectations beyond the listed grade; do not soften below it. Do not cite standard codes back to the student.",
+      "STEP 1 — DOMAIN FIRST. Choose ONE domain from domain_pool. Set requested_shape.domain to that exact string. The chosen domain MUST be different from the dominant domain of every entry in recent_prompts_to_avoid.",
+      "STEP 2 — WRITE THE PROMPT inside the chosen domain. No rephrasing, no same-subject-different-verb.",
+      "Match the student's CEFR level and US grade. Calibrate to student.curriculumStandard.",
       "Target at most two skills, snake_case.",
-      "Korean generatedReason must reference a specific signal.",
+      "Korean generatedReason must mention the chosen domain in Korean.",
       "Korean successCriteria are evaluation hints about thinking outcomes."
     ],
     requested_shape: {
+      domain: "exact string from domain_pool — DECIDE FIRST, must rotate away from recent_prompts_to_avoid",
       mode: "speaking | writing",
-      prompt: "1-2 sentence open thinking question, no scaffolds",
+      prompt: "1-2 sentence open thinking question, anchored in chosen domain",
       targetSkills: ["snake_case"],
       rewardValue: 1,
-      generatedReason: "Korean",
+      generatedReason: "Korean: cite the rotated domain",
       successCriteria: ["Korean", "Korean"]
     }
   };
@@ -307,7 +360,38 @@ function shortPrompt(p) {
   return s.length > 200 ? s.slice(0, 200) + "…" : s;
 }
 
+async function runDomainRotation() {
+  console.log("# Domain rotation check — 3 consecutive 'refresh' calls per grade\n");
+  console.log(`Model: ${MODEL}\n`);
+  console.log(
+    "For each grade we call task generation 3 times in a row, accumulating the\n" +
+      "prior prompts into recent_prompts_to_avoid. Expect each call to land in a\n" +
+      "clearly different domain (e.g., not 3× school-rules variants).\n"
+  );
+  const rounds = [
+    { grade: "G5", mode: "writing" },
+    { grade: "G8", mode: "writing" },
+    { grade: "G11", mode: "writing" }
+  ];
+  for (const r of rounds) {
+    console.log(`\n## ${r.grade} · ${r.mode}\n`);
+    const seen = [];
+    for (let i = 1; i <= 3; i += 1) {
+      const t = await generateTask(r.grade, r.mode, seen);
+      const prompt = t.prompt ?? "(none)";
+      const domain = t.domain ?? "(no domain field)";
+      console.log(`- **Call ${i}** [domain: ${domain}] — ${prompt}`);
+      seen.push(prompt);
+    }
+  }
+}
+
 async function main() {
+  if (process.argv.includes("--domain-rotation")) {
+    await runDomainRotation();
+    return;
+  }
+
   const TARGET_GRADES = ["G2", "G5", "G8", "G11"];
   const tasks = {};
 

@@ -57,11 +57,69 @@ function evaluationModel() {
   return process.env.OPENAI_EVALUATION_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-5.4-mini";
 }
 
+/* ------------------------------------------------------------------------- *
+ * Domain pools per school band. The model is told to pick a domain FIRST
+ * (declared in requested_shape.domain), and to rotate away from any domain
+ * already represented in recent_prompts_to_avoid. This is what actually
+ * makes "다른 주제 받기" jump across subjects (science / philosophy /
+ * school / news / …) instead of producing another classroom-rules variant.
+ * ------------------------------------------------------------------------- */
+const DOMAIN_POOLS: Record<"elementary" | "middle" | "high", string[]> = {
+  elementary: [
+    "school life",
+    "family & home",
+    "friends",
+    "hobbies & games",
+    "food & cooking",
+    "nature & animals",
+    "weather & seasons",
+    "sports & play",
+    "art & music",
+    "holidays & traditions",
+    "imagination & future",
+    "books & stories"
+  ],
+  middle: [
+    "school life",
+    "family & relationships",
+    "hobbies & creative interests",
+    "nature & environment",
+    "science & discovery",
+    "technology in daily life",
+    "ethics & fairness",
+    "news & current events",
+    "arts, books & media",
+    "history & culture",
+    "sports & health",
+    "future & big questions",
+    "money & responsibility",
+    "neighborhood & community"
+  ],
+  high: [
+    "society & community",
+    "philosophy & big questions",
+    "ethics & moral dilemmas",
+    "current events & news",
+    "science & innovation",
+    "technology's impact on society",
+    "arts, literature & media",
+    "history & culture",
+    "economics, work & money",
+    "personal identity & belief",
+    "global issues & politics",
+    "human nature & psychology",
+    "education & learning itself",
+    "environment & climate"
+  ]
+};
+
 async function callOpenAIForTask(input: GenerateInput): Promise<DailyTask> {
   const { mode, context } = input;
   const { student, skillStates, recentObservations } = context;
   const gradeMeta = gradeMetaFromLabel(student.usGradeLevel);
   const curriculumStandard = curriculumSnippet(gradeMeta.key, mode);
+  const domainPool = DOMAIN_POOLS[gradeMeta.schoolBand];
+  const avoidPrompts = input.avoidPrompts ?? [];
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -121,16 +179,18 @@ async function callOpenAIForTask(input: GenerateInput): Promise<DailyTask> {
                   lastSeen: o.lastSeen
                 })),
                 today: todayKey(),
-                recent_prompts_to_avoid: input.avoidPrompts ?? [],
+                recent_prompts_to_avoid: avoidPrompts,
+                domain_pool: domainPool,
                 authoring_rules: [
-                  "Speaking and writing tasks for the same student MUST differ in topic and cognitive demand. Do not mirror them. If this is a writing task, do not produce an opinion question that would also work verbally — pick a topic that genuinely benefits from being written out.",
+                  "STEP 1 — DOMAIN FIRST. Before writing the prompt, choose ONE domain from domain_pool. Set requested_shape.domain to that exact string. The chosen domain MUST be different from the dominant domain of every entry in recent_prompts_to_avoid. If the avoided prompts cluster around 'school life' or 'classroom rules', the new domain MUST be from a clearly different bucket — e.g., 'science & discovery', 'nature & environment', 'philosophy & big questions', 'news & current events', 'arts, books & media'. Do NOT re-use the same domain from a slightly different angle.",
+                  "STEP 2 — WRITE THE PROMPT inside the chosen domain. The reader should immediately recognize the subject as different from the avoided prompts. No rephrasing. No same-subject-different-verb.",
+                  "Speaking and writing tasks for the same student MUST differ in topic and cognitive demand. If this is a writing task, do not produce an opinion question that would also work verbally — pick a topic that genuinely benefits from being written out.",
                   "Match the student's CEFR level precisely. A1 ≈ very simple personal/concrete; A2 ≈ familiar topics with reasons; B1 ≈ opinions and short arguments; B2+ ≈ abstract or comparative analysis.",
                   "Match the student's US grade equivalent. A Grade 5 student is 10-11 years old — do NOT use Grade 1 sentence frames. A Grade 7+ student is 12+ — they can handle opinions and hypotheticals.",
                   "Calibrate the prompt's cognitive load to student.curriculumStandard (CCSS-aligned grade expectations). Do not invent expectations beyond the listed grade; do not soften below it. Do not cite standard codes back to the student.",
-                  "Use the student's recent observations and interests as topic seeds. Avoid repeating last week's topics.",
-                  "recent_prompts_to_avoid lists prompts ALREADY shown today for this same mode. The new prompt MUST address a CLEARLY DIFFERENT topic and angle — not a rephrasing, not the same subject from a different verb. If the avoided prompts are about school rules, pick a non-school topic (family, hobby, ethics, nature, technology, memory, future, etc.). The reader should immediately recognize the topic as new.",
+                  "Use the student's recent observations and interests as topic seeds only when they fit the rotated domain. Avoid repeating last week's topics.",
                   "Target at most two skills, and they must appear in targetSkills as snake_case.",
-                  "Korean generatedReason must reference a specific skill_state or observation that justifies this task today.",
+                  "Korean generatedReason must reference a specific skill_state or observation that justifies this task today AND mention the chosen domain in Korean (e.g., '과학·발견 분야로 주제를 돌려 …').",
                   "Korean successCriteria are evaluation hints, not sentence templates. Keep them about thinking outcomes (e.g., '이유 2개를 서로 다른 측면에서 제시') not phrasing rules."
                 ],
                 example_good_prompts: {
@@ -147,11 +207,12 @@ async function callOpenAIForTask(input: GenerateInput): Promise<DailyTask> {
                   "Choose a starter: 'I see a book.' or 'I see a cup.'"
                 ],
                 requested_shape: {
+                  domain: "exact string from domain_pool — DECIDE THIS FIRST, must rotate away from recent_prompts_to_avoid",
                   mode: "speaking | writing",
-                  prompt: "1-2 sentence open thinking question, no scaffolds",
+                  prompt: "1-2 sentence open thinking question, no scaffolds, anchored in the chosen domain",
                   targetSkills: ["snake_case skill"],
                   rewardValue: 1,
-                  generatedReason: "Korean: which skill_state or observation this targets today",
+                  generatedReason: "Korean: cite the rotated domain + a specific skill_state or observation",
                   successCriteria: ["Korean thinking outcome", "Korean thinking outcome"]
                 }
               })
