@@ -28,6 +28,12 @@ export type DailyTask = {
   rewardValue: number;
   generatedReason: string;
   successCriteria: string[];
+  /** Curriculum domain the task was sampled from (e.g. "science & discovery").
+   *  Optional because legacy rows / fallbacks may not carry it. */
+  domain?: string;
+  /** True when SSR returned a placeholder because no real task exists for
+   *  today yet — the client will hydrate the real one via /api/tasks/refresh. */
+  pending?: boolean;
 };
 
 export type SpeakingFeedbackSection = {

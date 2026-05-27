@@ -504,8 +504,49 @@ select:focus {
   gap: 16px;
 }
 
+.prompt-card-head-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
 .prompt-card-head .tiny-label {
   margin: 0;
+}
+
+.domain-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--sand);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  white-space: nowrap;
+  animation: domain-chip-in 320ms var(--ease);
+}
+
+.domain-chip svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+@keyframes domain-chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .prompt-card-head svg {

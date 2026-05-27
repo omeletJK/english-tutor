@@ -148,6 +148,7 @@ export async function POST(request: Request) {
       reward_value: nextTask.rewardValue,
       generated_reason: nextTask.generatedReason,
       success_criteria: nextTask.successCriteria,
+      domain: nextTask.domain ?? null,
       status: "assigned"
     })
     .select("*")
@@ -161,7 +162,8 @@ export async function POST(request: Request) {
         targetSkills: insertedNext.target_skills ?? [],
         rewardValue: insertedNext.reward_value ?? 1,
         generatedReason: insertedNext.generated_reason ?? "",
-        successCriteria: insertedNext.success_criteria ?? []
+        successCriteria: insertedNext.success_criteria ?? [],
+        domain: insertedNext.domain ?? undefined
       }
     : nextTask;
 

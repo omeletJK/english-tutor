@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AvatarButton } from "@/components/avatar";
 import { Envelope, Microphone, Notebook, RotateCcw, Star } from "@/components/illustrations";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/components/session-history";
 import { SessionDetailModal } from "@/components/session-detail-modal";
 import { DailyJourneyChart } from "@/components/daily-journey-chart";
+import { DomainChip } from "@/components/domain-chip";
 import type {
   DashboardData,
   EvaluationSnapshot,
@@ -68,6 +69,7 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
   const [recordingError, setRecordingError] = useState("");
   const [heardReference, setHeardReference] = useState<ReferenceSentence | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refreshingMode, setRefreshingMode] = useState<TaskMode | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const discardRecordingRef = useRef(false);
@@ -87,6 +89,53 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
   const setWritingPracticeInput = useCallback((sentence: string, value: string) => {
     setWritingPracticeInputs((current) => ({ ...current, [sentence]: value }));
   }, []);
+
+  // Hydrate placeholder tasks the server returned because they didn't exist in
+  // the DB yet. The SSR no longer blocks on OpenAI; instead we fire the
+  // generation here on the client so the page paints immediately.
+  useEffect(() => {
+    const studentId = activeStudent.student.id;
+    const pendingModes: TaskMode[] = [];
+    if (activeStudent.speakingTask?.pending) pendingModes.push("speaking");
+    if (activeStudent.writingTask?.pending) pendingModes.push("writing");
+    if (pendingModes.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      await Promise.all(
+        pendingModes.map(async (mode) => {
+          try {
+            const response = await fetch("/api/tasks/refresh", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ mode })
+            });
+            if (!response.ok) return;
+            const { task } = await response.json();
+            if (!task || cancelled) return;
+            setStudents((current) =>
+              current.map((entry) =>
+                entry.student.id === studentId
+                  ? {
+                      ...entry,
+                      ...(mode === "speaking"
+                        ? { speakingTask: task, todayTask: task }
+                        : { writingTask: task })
+                    }
+                  : entry
+              )
+            );
+          } catch {
+            /* leave placeholder; user can retry via 다른 주제 받기 */
+          }
+        })
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeStudent.student.id, activeStudent.speakingTask?.pending, activeStudent.writingTask?.pending]);
 
   async function completeQuest(mode: TaskMode, answer: string, isRevision = false) {
     if (answer.trim().length < 2 || isSubmitting) {
@@ -366,31 +415,37 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
   }
 
   async function refreshTask(mode: TaskMode) {
-    const response = await fetch("/api/tasks/refresh", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode })
-    });
-    if (!response.ok) {
-      return;
-    }
-    const { task } = await response.json();
-    if (!task) return;
-    updateActiveStudent((student) => ({
-      ...student,
-      ...(mode === "speaking" ? { speakingTask: task } : { writingTask: task }),
-      todayTask: task
-    }));
-    if (mode === "writing") {
-      setFeedback(null);
-      setWritingDraft("");
-      setWritingPracticeInputs({});
-      setWritingScoreTrail([]);
-      setRetryMode(false);
-    } else {
-      setSpeakingFeedback(null);
-      setHeardReference(null);
-      setRecordingError("");
+    if (refreshingMode) return;
+    setRefreshingMode(mode);
+    try {
+      const response = await fetch("/api/tasks/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode })
+      });
+      if (!response.ok) {
+        return;
+      }
+      const { task } = await response.json();
+      if (!task) return;
+      updateActiveStudent((student) => ({
+        ...student,
+        ...(mode === "speaking" ? { speakingTask: task } : { writingTask: task }),
+        todayTask: task
+      }));
+      if (mode === "writing") {
+        setFeedback(null);
+        setWritingDraft("");
+        setWritingPracticeInputs({});
+        setWritingScoreTrail([]);
+        setRetryMode(false);
+      } else {
+        setSpeakingFeedback(null);
+        setHeardReference(null);
+        setRecordingError("");
+      }
+    } finally {
+      setRefreshingMode(null);
     }
   }
 
@@ -526,6 +581,7 @@ export function FamilyTutorApp({ initialData }: FamilyTutorAppProps) {
                     onRetryWriting={onRetryWriting}
                     onRetrySpeaking={onRetrySpeaking}
                     refreshTask={refreshTask}
+                    refreshingMode={refreshingMode}
                     retryMode={retryMode}
                     setQuestMode={setQuestMode}
                     setWritingPracticeInput={setWritingPracticeInput}
@@ -653,6 +709,7 @@ function PlayView({
   onRetryWriting,
   onRetrySpeaking,
   refreshTask,
+  refreshingMode,
   retryMode,
   setQuestMode,
   setWritingPracticeInput,
@@ -679,6 +736,7 @@ function PlayView({
   onRetryWriting: () => void;
   onRetrySpeaking: () => void;
   refreshTask: (mode: TaskMode) => Promise<void>;
+  refreshingMode: TaskMode | null;
   retryMode: boolean;
   setQuestMode: (mode: TaskMode) => void;
   setWritingPracticeInput: (sentence: string, value: string) => void;
@@ -711,21 +769,31 @@ function PlayView({
               <span className="message-avatar">O</span>
               <div className="message-card prompt-card">
                 <div className="prompt-card-head">
-                  <p className="tiny-label">Today · Speaking</p>
+                  <div className="prompt-card-head-left">
+                    <p className="tiny-label">Today · Speaking</p>
+                    <DomainChip domain={activeStudent.speakingTask.domain} />
+                  </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <button
                       className="soft-button prompt-refresh"
                       type="button"
                       onClick={() => refreshTask("speaking")}
+                      disabled={refreshingMode !== null || activeStudent.speakingTask.pending}
                       style={{ marginTop: 0, alignSelf: "auto" }}
                     >
-                      ↻ 다른 주제 받기
+                      {refreshingMode === "speaking" ? "주제를 다시 고르는 중…" : "↻ 다른 주제 받기"}
                     </button>
                     <Microphone size={44} />
                   </div>
                 </div>
-                <h2>{activeStudent.speakingTask.prompt}</h2>
-                <p>녹음 버튼을 누르고 영어로 답해 보세요. 답변이 끝나면 전체 내용을 평가하고 더 자연스러운 문장으로 다시 말할 수 있게 도와줍니다.</p>
+                {activeStudent.speakingTask.pending || refreshingMode === "speaking" ? (
+                  <PromptSkeleton kind="speaking" />
+                ) : (
+                  <>
+                    <h2>{activeStudent.speakingTask.prompt}</h2>
+                    <p>녹음 버튼을 누르고 영어로 답해 보세요. 답변이 끝나면 전체 내용을 평가하고 더 자연스러운 문장으로 다시 말할 수 있게 도와줍니다.</p>
+                  </>
+                )}
               </div>
             </div>
 
@@ -747,7 +815,11 @@ function PlayView({
                     className="quest-submit"
                     onClick={startRecording}
                     type="button"
-                    disabled={recordingState !== "idle"}
+                    disabled={
+                      recordingState !== "idle" ||
+                      activeStudent.speakingTask.pending ||
+                      refreshingMode === "speaking"
+                    }
                   >
                     Start recording
                   </button>
@@ -806,21 +878,31 @@ function PlayView({
               <span className="message-avatar">O</span>
               <div className="message-card prompt-card">
                 <div className="prompt-card-head">
-                  <p className="tiny-label">Today · Writing</p>
+                  <div className="prompt-card-head-left">
+                    <p className="tiny-label">Today · Writing</p>
+                    <DomainChip domain={activeStudent.writingTask.domain} />
+                  </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <button
                       className="soft-button prompt-refresh"
                       type="button"
                       onClick={() => refreshTask("writing")}
+                      disabled={refreshingMode !== null || activeStudent.writingTask.pending}
                       style={{ marginTop: 0, alignSelf: "auto" }}
                     >
-                      ↻ 다른 주제 받기
+                      {refreshingMode === "writing" ? "주제를 다시 고르는 중…" : "↻ 다른 주제 받기"}
                     </button>
                     <Notebook size={44} />
                   </div>
                 </div>
-                <h2>{activeStudent.writingTask.prompt}</h2>
-                <p>먼저 생각을 편하게 쓰고, 평가 후에는 더 좋은 문장으로 다시 작성해 점수를 올려 봅니다.</p>
+                {activeStudent.writingTask.pending || refreshingMode === "writing" ? (
+                  <PromptSkeleton kind="writing" />
+                ) : (
+                  <>
+                    <h2>{activeStudent.writingTask.prompt}</h2>
+                    <p>먼저 생각을 편하게 쓰고, 평가 후에는 더 좋은 문장으로 다시 작성해 점수를 올려 봅니다.</p>
+                  </>
+                )}
               </div>
             </div>
             <button className="soft-button" onClick={startBrainstorming} type="button">
@@ -875,7 +957,13 @@ function PlayView({
                     className="quest-submit"
                     onClick={() => completeQuest("writing", writingDraft, Boolean(writingFeedback))}
                     type="button"
-                    disabled={isSubmitting || writingDraft.trim().length < 2 || !writingPracticeComplete}
+                    disabled={
+                      isSubmitting ||
+                      writingDraft.trim().length < 2 ||
+                      !writingPracticeComplete ||
+                      activeStudent.writingTask.pending ||
+                      refreshingMode === "writing"
+                    }
                   >
                     {writingFeedback ? "🎯 다시 점수 받기" : "Finish Quest"}
                   </button>
@@ -1612,4 +1700,19 @@ function formatNextPayout(): string {
 
 function latestOverallScore(student: StudentDashboard) {
   return student.evaluationSnapshots.at(-1)?.overallScore ?? student.lessonHistory[0]?.score ?? 0;
+}
+
+function PromptSkeleton({ kind }: { kind: TaskMode }) {
+  return (
+    <div aria-live="polite" aria-busy="true">
+      <h2 style={{ color: "var(--ink-soft)", fontStyle: "italic" }}>
+        오늘의 {kind === "speaking" ? "이야기" : "쓰기"} 주제를 골라오는 중이에요…
+      </h2>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
+        <span style={{ height: 14, borderRadius: 7, background: "var(--surface-strong, #eef0f5)", width: "92%" }} />
+        <span style={{ height: 14, borderRadius: 7, background: "var(--surface-strong, #eef0f5)", width: "78%" }} />
+        <span style={{ height: 14, borderRadius: 7, background: "var(--surface-strong, #eef0f5)", width: "55%" }} />
+      </div>
+    </div>
+  );
 }

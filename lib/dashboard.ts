@@ -3,7 +3,6 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import {
   generateAdaptiveTask,
   getCachedTask,
-  setCachedTask,
   type StudentContext
 } from "@/lib/task-generator";
 import type {
@@ -47,7 +46,7 @@ export async function loadDashboardData(currentUser: FamilyUser): Promise<Dashbo
     }
 
     const entries = await Promise.all(
-      rows.map((row) => buildStudentEntry(supabase, mapStudent(row), { generateMissingTasks: false }))
+      rows.map((row) => buildStudentEntry(supabase, mapStudent(row)))
     );
 
     return {
@@ -62,7 +61,7 @@ export async function loadDashboardData(currentUser: FamilyUser): Promise<Dashbo
     return await applyAdaptiveTasks(createDemoDashboard(currentUser));
   }
 
-  const entry = await buildStudentEntry(supabase, student, { generateMissingTasks: true });
+  const entry = await buildStudentEntry(supabase, student);
 
   return {
     currentUser,
@@ -73,8 +72,7 @@ export async function loadDashboardData(currentUser: FamilyUser): Promise<Dashbo
 
 async function buildStudentEntry(
   supabase: FamilySupabase,
-  student: Student,
-  opts: { generateMissingTasks: boolean }
+  student: Student
 ): Promise<StudentDashboard> {
   const today = new Date().toISOString().slice(0, 10);
   const fallback = pickDemoFallback(student);
@@ -164,36 +162,11 @@ async function buildStudentEntry(
   const rewardLedger = (rewardLedgerResult.data ?? []).map(mapRewardLedgerItem);
   const rewardBalance = Number(rewardBalanceResult.data?.reward_balance ?? 0);
 
-  const context: StudentContext = {
-    student,
-    skillStates: skillStates.length ? skillStates : fallback.skillStates,
-    recentObservations: recentObservations.length ? recentObservations : fallback.recentObservations
-  };
-
   const existingSpeaking = todayTasks.find((t) => t.mode === "speaking");
   const existingWriting = todayTasks.find((t) => t.mode === "writing");
 
-  const speakingTask = opts.generateMissingTasks
-    ? await ensureTodayTask({
-        supabase,
-        studentId: student.id,
-        today,
-        mode: "speaking",
-        existing: existingSpeaking,
-        context
-      })
-    : existingSpeaking ?? fallback.speakingTask;
-
-  const writingTask = opts.generateMissingTasks
-    ? await ensureTodayTask({
-        supabase,
-        studentId: student.id,
-        today,
-        mode: "writing",
-        existing: existingWriting,
-        context
-      })
-    : existingWriting ?? fallback.writingTask;
+  const speakingTask = existingSpeaking ?? makePendingTask("speaking", student.id, today);
+  const writingTask = existingWriting ?? makePendingTask("writing", student.id, today);
 
   const progressPoints = buildProgressPointsFromSnapshots(evaluationSnapshots, fallback.progressPoints);
 
@@ -251,46 +224,17 @@ function buildProgressPointsFromSnapshots(
   }));
 }
 
-async function ensureTodayTask(args: {
-  supabase: ReturnType<typeof getSupabaseAdmin>;
-  studentId: string;
-  today: string;
-  mode: TaskMode;
-  existing: DailyTask | undefined;
-  context: StudentContext;
-}): Promise<DailyTask> {
-  if (args.existing) {
-    setCachedTask(args.studentId, args.mode, args.existing, args.today);
-    return args.existing;
-  }
-
-  const task = await generateAdaptiveTask({ mode: args.mode, context: args.context, date: args.today });
-
-  if (args.supabase) {
-    const { data } = await args.supabase
-      .from("daily_tasks")
-      .insert({
-        student_id: args.studentId,
-        task_date: args.today,
-        mode: task.mode,
-        prompt: task.prompt,
-        target_skills: task.targetSkills,
-        reward_value: task.rewardValue,
-        generated_reason: task.generatedReason,
-        success_criteria: task.successCriteria,
-        status: "assigned"
-      })
-      .select("*")
-      .single();
-
-    if (data) {
-      const persisted = mapDailyTask(data);
-      setCachedTask(args.studentId, args.mode, persisted, args.today);
-      return persisted;
-    }
-  }
-
-  return task;
+function makePendingTask(mode: TaskMode, studentId: string, date: string): DailyTask {
+  return {
+    id: `task-pending-${mode}-${studentId}-${date}`,
+    mode,
+    prompt: "",
+    targetSkills: [],
+    rewardValue: 1,
+    generatedReason: "",
+    successCriteria: [],
+    pending: true
+  };
 }
 
 async function applyAdaptiveTasks(dashboard: DashboardData): Promise<DashboardData> {
@@ -404,7 +348,8 @@ function mapDailyTask(row: Record<string, any>): DailyTask {
     targetSkills: row.target_skills ?? [],
     rewardValue: row.reward_value ?? 1,
     generatedReason: row.generated_reason ?? "",
-    successCriteria: row.success_criteria ?? []
+    successCriteria: row.success_criteria ?? [],
+    domain: row.domain ?? undefined
   };
 }
 

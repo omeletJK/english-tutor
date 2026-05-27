@@ -72,6 +72,7 @@ export async function POST(request: Request) {
         reward_value: task.rewardValue,
         generated_reason: task.generatedReason,
         success_criteria: task.successCriteria,
+        domain: task.domain ?? null,
         status: "assigned"
       })
       .select("*")
@@ -85,7 +86,8 @@ export async function POST(request: Request) {
         targetSkills: data.target_skills ?? [],
         rewardValue: data.reward_value ?? 1,
         generatedReason: data.generated_reason ?? "",
-        successCriteria: data.success_criteria ?? []
+        successCriteria: data.success_criteria ?? [],
+        domain: data.domain ?? undefined
       };
       setCachedTask(student.id, mode, persisted, today);
       return Response.json({ task: persisted });

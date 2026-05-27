@@ -249,6 +249,13 @@ function normalizeGeneratedTask(parsed: any, input: GenerateInput): DailyTask {
     ? parsed.successCriteria.map((s: unknown) => String(s).trim()).filter(Boolean)
     : [];
 
+  // Only accept domains the prompt is allowed to claim — guards against the
+  // model inventing a label outside the school-band pool.
+  const gradeMeta = gradeMetaFromLabel(input.context.student.usGradeLevel);
+  const allowedDomains = DOMAIN_POOLS[gradeMeta.schoolBand];
+  const rawDomain = typeof parsed.domain === "string" ? parsed.domain.trim() : "";
+  const domain = allowedDomains.includes(rawDomain) ? rawDomain : undefined;
+
   return {
     id: `task-${input.mode}-${input.context.student.id}-${input.date ?? todayKey()}`,
     mode: input.mode,
@@ -258,11 +265,9 @@ function normalizeGeneratedTask(parsed: any, input: GenerateInput): DailyTask {
     generatedReason:
       typeof parsed.generatedReason === "string" && parsed.generatedReason.trim()
         ? parsed.generatedReason.trim()
-        : (() => {
-            const meta = gradeMetaFromLabel(input.context.student.usGradeLevel);
-            return `${input.context.student.displayName} 학생의 ${meta.stageLabel}(CEFR ${meta.cefrEquivalent})에 맞춘 ${input.mode === "speaking" ? "말하기" : "쓰기"} 과제입니다.`;
-          })(),
-    successCriteria: successCriteria.length ? successCriteria : defaultSuccessCriteria(input.mode)
+        : `${input.context.student.displayName} 학생의 ${gradeMeta.stageLabel}(CEFR ${gradeMeta.cefrEquivalent})에 맞춘 ${input.mode === "speaking" ? "말하기" : "쓰기"} 과제입니다.`,
+    successCriteria: successCriteria.length ? successCriteria : defaultSuccessCriteria(input.mode),
+    domain
   };
 }
 
@@ -295,7 +300,7 @@ export function fallbackAdaptiveTask(input: GenerateInput): DailyTask {
   const grade = parseGradeNumber(student.usGradeLevel);
   const date = input.date ?? todayKey();
 
-  const prompt = buildFallbackPrompt({
+  const picked = buildFallbackPrompt({
     mode,
     grade,
     weakest,
@@ -308,11 +313,12 @@ export function fallbackAdaptiveTask(input: GenerateInput): DailyTask {
   return {
     id: `task-fallback-${mode}-${student.id}-${date}`,
     mode,
-    prompt,
+    prompt: picked.prompt,
     targetSkills: weakest ? [weakest.skill] : ["sentence_expansion"],
     rewardValue: 1,
     generatedReason: buildFallbackReason({ student, weakest }),
-    successCriteria: defaultSuccessCriteria(mode)
+    successCriteria: defaultSuccessCriteria(mode),
+    domain: picked.domain
   };
 }
 
@@ -333,7 +339,7 @@ function parseGradeNumber(label: string): number {
   return match ? Number(match[1]) : 5;
 }
 
-function buildFallbackPrompt(args: { mode: TaskMode; grade: number; weakest: SkillState | null; interest: string | null; date: string; studentId: string; avoidPrompts?: string[] }) {
+function buildFallbackPrompt(args: { mode: TaskMode; grade: number; weakest: SkillState | null; interest: string | null; date: string; studentId: string; avoidPrompts?: string[] }): { prompt: string; domain: string } {
   const { mode, grade, interest, date, studentId, avoidPrompts } = args;
   const topicSeed = interest ? extractTopicSeed(interest) : null;
 
@@ -449,7 +455,8 @@ function buildFallbackPrompt(args: { mode: TaskMode; grade: number; weakest: Ski
   // mixing in avoidSet.size guarantees each refresh picks a different slot.
   const seedString = `${studentId}-${mode}-${date}-${topicSeed ?? args.weakest?.skill ?? "general"}-r${avoidSet.size}`;
   const seedHash = hashString(seedString);
-  return candidates[seedHash % candidates.length].prompt;
+  const chosen = candidates[seedHash % candidates.length];
+  return { prompt: chosen.prompt, domain: chosen.domain };
 }
 
 function hashString(input: string): number {
